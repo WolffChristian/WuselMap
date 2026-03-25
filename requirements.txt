@@ -1,0 +1,10 @@
+streamlit
+pandas
+requests
+plotly
+geopy
+numpy
+mysql-connector-python
+fastapi
+uvicorn
+python-dotenv
