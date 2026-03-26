@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderUnavailable
 import numpy as np
 import mysql.connector
 from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
@@ -110,7 +111,6 @@ with st.sidebar:
                     if conn:
                         try:
                             cursor = conn.cursor()
-                            # Spalte 'alter_nutzer' wird hier befüllt
                             sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_nutzer, rolle) VALUES (%s, %s, %s, %s, %s, %s, 'user')"
                             cursor.execute(sql, (reg_u, reg_p, reg_m, reg_v, reg_n, reg_a))
                             conn.commit()
@@ -132,7 +132,14 @@ if st.session_state.wahl == "📍 Suche":
     
     if st.button("🔍 Suchen", type="primary"):
         with st.spinner("Suche läuft..."):
-            geo = Nominatim(user_agent="KletterKompass").geocode(adr + ", Friesland")
+            try:
+                # FIX: Timeout auf 10 Sekunden und eindeutiger User-Agent
+                geolocator = Nominatim(user_agent="KletterKompass_Varel_Production_2026")
+                geo = geolocator.geocode(adr + ", Friesland", timeout=10)
+            except (GeocoderUnavailable, Exception):
+                st.error("Der Kartendienst ist gerade überlastet. Bitte versuch es in 10 Sekunden nochmal.")
+                geo = None
+
             df = hole_df_aus_db("SELECT * FROM spielplaetze")
             if geo and not df.empty:
                 df['distanz'] = df.apply(lambda r: distanz(geo.latitude, geo.longitude, r['lat'], r['lon']), axis=1)
@@ -150,7 +157,9 @@ if st.session_state.wahl == "📍 Suche":
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
                         st.plotly_chart(fig, width='stretch')
                 else: st.warning("Keine Spielplätze gefunden.")
-            else: st.error("Ort nicht gefunden oder Datenbank leer.")
+            elif not geo:
+                pass # Fehler wurde oben bereits durch st.error angezeigt
+            else: st.error("Datenbank leer.")
 
 elif st.session_state.wahl == "📄 Rechtliches":
     show_legal_page()
