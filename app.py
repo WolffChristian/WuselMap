@@ -18,7 +18,7 @@ def get_db_connection():
             password=st.secrets["DB_PASSWORD"],
             port=int(st.secrets["DB_PORT"]),
             database=st.secrets["DB_NAME"],
-            ssl_disabled=False # Dieser Befehl hat bei dir funktioniert
+            ssl_disabled=False 
         )
     except Exception as e:
         st.error(f"Datenbank-Fehler: {e}")
@@ -97,7 +97,7 @@ with st.sidebar:
             reg_v = st.text_input("Vorname", key="reg_v")
             reg_n = st.text_input("Nachname", key="reg_n")
             reg_m = st.text_input("E-Mail", key="reg_m")
-            reg_a = st.number_input("Alter des Kindes", min_value=0, max_value=18, step=1, key="reg_a")
+            reg_a = st.number_input("Dein Alter", min_value=0, max_value=120, step=1, key="reg_a")
             reg_agb = st.checkbox("Ich akzeptiere die AGB", key="reg_agb")
             
             if st.button("AGB lesen", key="btn_read_agb_reg"):
@@ -110,7 +110,8 @@ with st.sidebar:
                     if conn:
                         try:
                             cursor = conn.cursor()
-                            sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_kind, rolle) VALUES (%s, %s, %s, %s, %s, %s, 'user')"
+                            # Spalte 'alter_nutzer' wird hier befüllt
+                            sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_nutzer, rolle) VALUES (%s, %s, %s, %s, %s, %s, 'user')"
                             cursor.execute(sql, (reg_u, reg_p, reg_m, reg_v, reg_n, reg_a))
                             conn.commit()
                             st.success("Erfolg! Bitte jetzt einloggen.")
@@ -162,7 +163,7 @@ elif st.session_state.wahl == "👤 Profil":
         u = df_p.iloc[0]
         st.write(f"**Name:** {u.get('vorname', '')} {u.get('nachname', '')}")
         st.write(f"**E-Mail:** {u.get('email', '')}")
-        st.write(f"**Alter des Kindes:** {u.get('alter_kind', 0)} Jahre")
+        st.write(f"**Alter:** {u.get('alter_nutzer', 0)} Jahre")
     else: st.error("Bitte logge dich erst ein.")
 
 elif st.session_state.wahl == "💬 Feedback":
@@ -191,7 +192,6 @@ elif st.session_state.wahl == "🏗️ Vorschlag":
 elif st.session_state.wahl == "🛠️ Admin":
     display_page_header()
     st.title("Admin-Dashboard")
-    st.write("Hier kannst du bald gemeldete Plätze freigeben.")
     df_all = hole_df_aus_db("SELECT * FROM nutzer")
     st.write("**Registrierte Nutzer:**")
     st.dataframe(df_all)
