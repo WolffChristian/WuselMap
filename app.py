@@ -6,6 +6,16 @@ from geopy.geocoders import Nominatim
 import numpy as np
 import time
 from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
+import mysql.connector
+
+db_config = {
+    'host': st.secrets["DB_HOST"],
+    'user': st.secrets["DB_USER"],
+    'password': st.secrets["DB_PASSWORD"],
+    'port': st.secrets["DB_PORT"],
+    'database': st.secrets["DB_NAME"]
+}
+
 
 # --- 1. SETUP ---
 BACKEND_URL = "http://127.0.0.1:8000"
