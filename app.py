@@ -165,7 +165,7 @@ if st.session_state.wahl == "📍 Suche":
                                 ausl = int(r.get('auslastung', 0))
                                 st.progress(ausl / 100, text=f"Auslastung: {ausl}%")
                                 
-                                # NEU: Wetter wird jetzt HIER für jeden Platz einzeln geladen
+                                # Wetter wird hier für jeden Platz einzeln geladen
                                 w = get_weather(r['lat'], r['lon'])
                                 if w:
                                     st.write("---")
@@ -175,16 +175,18 @@ if st.session_state.wahl == "📍 Suche":
                                     st.caption("Wetterdaten nicht verfügbar.")
                     
                     with cm:
-                        # FIX: Karte mit deutlichen Punkten
+                        # FIX: Karte mit deutlich SICHTBAREN ROTEN Punkten
                         fig = px.scatter_mapbox(
                             res, 
                             lat="lat", 
                             lon="lon", 
                             hover_name="standort", 
-                            color_discrete_sequence=["#00FF00"], 
-                            zoom=11,
-                            size_max=15
+                            # Geänderte Farbe von Grün auf ROT für besseren Kontrast
+                            color_discrete_sequence=["#FF0000"], 
+                            zoom=11
                         )
+                        # Traces aktualisieren, um die Punktgröße zu garantieren
+                        fig.update_traces(marker=dict(size=12))
                         fig.update_layout(
                             mapbox_style="open-street-map", 
                             margin={"r":0,"t":0,"l":0,"b":0},
@@ -204,13 +206,17 @@ elif st.session_state.wahl == "📄 Rechtliches":
 elif st.session_state.wahl == "👤 Profil":
     display_page_header()
     st.title("Mein Profil")
-    df_p = hole_df_aus_db("SELECT * FROM nutzer WHERE nutzer_id=%s", (st.session_state.nutzer_id,))
-    if not df_p.empty:
-        u = df_p.iloc[0]
-        st.write(f"**Name:** {u.get('vorname', '')} {u.get('nachname', '')}")
-        st.write(f"**E-Mail:** {u.get('email', '')}")
-        st.write(f"**Alter:** {u.get('alter_nutzer', 0)} Jahre")
-    else: st.error("Logge dich ein, um dein Profil zu sehen.")
+    if st.session_state.logged_in:
+        df_p = hole_df_aus_db("SELECT * FROM nutzer WHERE nutzer_id=%s", (st.session_state.nutzer_id,))
+        if not df_p.empty:
+            u = df_p.iloc[0]
+            st.write(f"**Name:** {u.get('vorname', '')} {u.get('nachname', '')}")
+            st.write(f"**E-Mail:** {u.get('email', '')}")
+            st.write(f"**Alter:** {u.get('alter_nutzer', 0)} Jahre")
+        else:
+            st.error("Profil konnte nicht geladen werden.")
+    else:
+        st.error("Bitte logge dich ein.")
 
 elif st.session_state.wahl == "💬 Feedback":
     display_page_header()
