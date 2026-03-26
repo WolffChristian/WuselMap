@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderUnavailable
+from opencage.geocoder import OpenCageGeocode
 import numpy as np
 import mysql.connector
 from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
@@ -74,9 +73,7 @@ with st.sidebar:
         st.write("---")
         st.markdown(f"Eingeloggt als: **{st.session_state.rolle}**")
         if st.button("🚪 Logout", width='stretch'):
-            st.session_state.logged_in = False
-            st.session_state.nutzer_id = None
-            st.session_state.rolle = "gast"
+            for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
     else:
         t1, t2 = st.tabs(["🔑 Login", "📝 Registrieren"])
@@ -133,11 +130,19 @@ if st.session_state.wahl == "📍 Suche":
     if st.button("🔍 Suchen", type="primary"):
         with st.spinner("Suche läuft..."):
             try:
-                # FIX: Timeout auf 10 Sekunden und eindeutiger User-Agent
-                geolocator = Nominatim(user_agent="KletterKompass_Varel_Production_2026")
-                geo = geolocator.geocode(adr + ", Friesland", timeout=10)
-            except (GeocoderUnavailable, Exception):
-                st.error("Der Kartendienst ist gerade überlastet. Bitte versuch es in 10 Sekunden nochmal.")
+                # Nutzt den Key aus deinen Streamlit Secrets
+                geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+                results = geocoder.geocode(adr + ", Friesland")
+                if results and len(results) > 0:
+                    geo = type('obj', (object,), {
+                        'latitude': results[0]['geometry']['lat'],
+                        'longitude': results[0]['geometry']['lng']
+                    })
+                else:
+                    st.error("Ort nicht gefunden.")
+                    geo = None
+            except Exception as e:
+                st.error(f"Suche-Fehler: {e}")
                 geo = None
 
             df = hole_df_aus_db("SELECT * FROM spielplaetze")
@@ -156,9 +161,8 @@ if st.session_state.wahl == "📍 Suche":
                         fig = px.scatter_mapbox(res, lat="lat", lon="lon", hover_name="standort", zoom=11)
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
                         st.plotly_chart(fig, width='stretch')
-                else: st.warning("Keine Spielplätze gefunden.")
-            elif not geo:
-                pass # Fehler wurde oben bereits durch st.error angezeigt
+                else: st.warning("Nichts gefunden.")
+            elif not geo: pass
             else: st.error("Datenbank leer.")
 
 elif st.session_state.wahl == "📄 Rechtliches":
@@ -186,7 +190,7 @@ elif st.session_state.wahl == "💬 Feedback":
             cursor.execute("INSERT INTO feedback (nutzer_id, nachricht) VALUES (%s, %s)", (st.session_state.nutzer_id, msg))
             conn.commit()
             conn.close()
-            st.success("Vielen Dank für dein Feedback!")
+            st.success("Vielen Dank!")
 
 elif st.session_state.wahl == "🏗️ Vorschlag":
     display_page_header()
@@ -196,7 +200,7 @@ elif st.session_state.wahl == "🏗️ Vorschlag":
         p_adr = st.text_input("Genaue Adresse oder Koordinaten")
         p_info = st.text_area("Besonderheiten (z.B. Seilbahn, Schatten)")
         if st.form_submit_button("Vorschlag einreichen"):
-            st.success("Danke! Wir prüfen deinen Vorschlag und schalten ihn bald frei.")
+            st.success("Danke! Wir prüfen deinen Vorschlag.")
 
 elif st.session_state.wahl == "🛠️ Admin":
     display_page_header()
