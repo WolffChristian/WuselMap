@@ -17,7 +17,7 @@ def get_db_connection():
             password=st.secrets["DB_PASSWORD"],
             port=int(st.secrets["DB_PORT"]),
             database=st.secrets["DB_NAME"],
-            ssl_mode="REQUIRED"
+            ssl_disabled=False
         )
     except Exception as e:
         st.error(f"Datenbank-Fehler: {e}")
