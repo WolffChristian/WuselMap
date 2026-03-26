@@ -62,16 +62,19 @@ with st.sidebar:
     st.write("---")
 
     if st.session_state.logged_in:
+        # Standard-Bereiche für jeden Nutzer
         if st.button("👤 Mein Profil", width='stretch'): st.session_state.wahl = "👤 Profil"
         if st.button("💬 Feedback geben", width='stretch'): st.session_state.wahl = "💬 Feedback"
         if st.button("🏗️ Neuen Platz melden", width='stretch'): st.session_state.wahl = "🏗️ Vorschlag"
         
+        # ADMIN-RIEGEL: Nur sichtbar für Nutzer mit der Rolle 'admin'
         if st.session_state.rolle == "admin":
-            st.markdown("---")
-            if st.button("📊 Admin-Dashboard", width='stretch'): st.session_state.wahl = "🛠️ Admin"
+            st.markdown("### 🔐 Admin-Zone")
+            if st.button("📊 Admin-Dashboard", width='stretch'): 
+                st.session_state.wahl = "🛠️ Admin"
         
         st.write("---")
-        st.markdown(f"Eingeloggt als: **{st.session_state.rolle}**")
+        st.markdown(f"Status: **{st.session_state.rolle.upper()}**")
         if st.button("🚪 Logout", width='stretch'):
             for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
@@ -108,18 +111,17 @@ with st.sidebar:
                     if conn:
                         try:
                             cursor = conn.cursor()
+                            # WICHTIG: Neue Nutzer sind immer standardmäßig 'user'
                             sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_nutzer, rolle) VALUES (%s, %s, %s, %s, %s, %s, 'user')"
                             cursor.execute(sql, (reg_u, reg_p, reg_m, reg_v, reg_n, reg_a))
                             conn.commit()
                             st.success("Erfolg! Bitte jetzt einloggen.")
                             st.balloons()
                             conn.close()
-                        except Exception as e: st.error(f"Fehler bei Registrierung: {e}")
+                        except Exception as e: st.error(f"Fehler: {e}")
                 else: st.warning("Bitte alles ausfüllen & AGB bestätigen.")
 
 # --- 4. SEITEN-LOGIK ---
-st.warning("🚧 Beta-Modus aktiv.")
-
 if st.session_state.wahl == "📍 Suche":
     display_home_banner()
     st.title("Finde Spielplätze")
@@ -130,7 +132,6 @@ if st.session_state.wahl == "📍 Suche":
     if st.button("🔍 Suchen", type="primary"):
         with st.spinner("Suche läuft..."):
             try:
-                # Nutzt den Key aus deinen Streamlit Secrets
                 geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                 results = geocoder.geocode(adr + ", Friesland")
                 if results and len(results) > 0:
@@ -160,7 +161,7 @@ if st.session_state.wahl == "📍 Suche":
                     with cm:
                         fig = px.scatter_mapbox(res, lat="lat", lon="lon", hover_name="standort", zoom=11)
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
-                        st.plotly_chart(fig, width='stretch')
+                        st.plotly_chart(fig, use_container_width=True)
                 else: st.warning("Nichts gefunden.")
             elif not geo: pass
             else: st.error("Datenbank leer.")
@@ -181,30 +182,31 @@ elif st.session_state.wahl == "👤 Profil":
 
 elif st.session_state.wahl == "💬 Feedback":
     display_page_header()
-    st.title("Feedback & Hilfe")
+    st.title("Feedback")
     msg = st.text_area("Wie können wir uns verbessern?")
-    if st.button("Absenden"):
+    if st.button("Senden"):
         conn = get_db_connection()
         if conn:
             cursor = conn.cursor()
             cursor.execute("INSERT INTO feedback (nutzer_id, nachricht) VALUES (%s, %s)", (st.session_state.nutzer_id, msg))
             conn.commit()
             conn.close()
-            st.success("Vielen Dank!")
+            st.success("Danke!")
 
 elif st.session_state.wahl == "🏗️ Vorschlag":
     display_page_header()
-    st.title("Neuen Platz melden")
-    with st.form("vorschlag_form"):
-        p_name = st.text_input("Name des Spielplatzes")
-        p_adr = st.text_input("Genaue Adresse oder Koordinaten")
-        p_info = st.text_area("Besonderheiten (z.B. Seilbahn, Schatten)")
-        if st.form_submit_button("Vorschlag einreichen"):
-            st.success("Danke! Wir prüfen deinen Vorschlag.")
+    st.title("Platz melden")
+    with st.form("v"):
+        n = st.text_input("Name des Platzes")
+        if st.form_submit_button("Senden"): st.success("Vorschlag eingereicht!")
 
 elif st.session_state.wahl == "🛠️ Admin":
-    display_page_header()
-    st.title("Admin-Dashboard")
-    df_all = hole_df_aus_db("SELECT * FROM nutzer")
-    st.write("**Registrierte Nutzer:**")
-    st.dataframe(df_all)
+    # ZUSÄTZLICHER SCHUTZ: Falls jemand die URL errät
+    if st.session_state.rolle == "admin":
+        display_page_header()
+        st.title("Admin-Dashboard")
+        df_all = hole_df_aus_db("SELECT * FROM nutzer")
+        st.write("**Registrierte Nutzer:**")
+        st.dataframe(df_all)
+    else:
+        st.error("Zugriff verweigert!")
