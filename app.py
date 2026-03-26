@@ -1,12 +1,13 @@
 import streamlit as st
-import mysql.connector
 import pandas as pd
 import plotly.express as px
 from geopy.geocoders import Nominatim
 import numpy as np
+import mysql.connector
+from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
 
-# --- 1. SETUP ---
-st.set_page_config(page_title="KletterKompass Varel", layout="wide")
+# --- 1. SETUP & DATENBANK ---
+st.set_page_config(page_title="KletterKompass BETA", layout="wide")
 
 def get_db_connection():
     try:
@@ -19,8 +20,26 @@ def get_db_connection():
             ssl_mode="REQUIRED"
         )
     except Exception as e:
-        st.error(f"Datenbank-Verbindung fehlgeschlagen: {e}")
+        st.error(f"Datenbank-Fehler: {e}")
         return None
+
+# Hilfsfunktion für SQL-Abfragen direkt in DataFrames
+def hole_df_aus_db(query, params=None):
+    conn = get_db_connection()
+    if conn:
+        try:
+            df = pd.read_sql(query, conn, params=params)
+            conn.close()
+            return df
+        except Exception as e:
+            st.error(f"Fehler bei Abfrage: {e}")
+            return pd.DataFrame()
+    return pd.DataFrame()
+
+# --- 2. HILFSFUNKTIONEN ---
+def get_weather(lat, lon):
+    # Dummy-Wetter für die Beta-Phase
+    return "20°C, Sonnig", "01d"
 
 def distanz(lat1, lon1, lat2, lon2):
     R = 6371
@@ -28,45 +47,19 @@ def distanz(lat1, lon1, lat2, lon2):
     a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
-# --- 2. HAUPTSEITE ---
-st.title("🧗 KletterKompass Varel")
-
-adr = st.text_input("Wo suchst du?", "Varel")
-km = st.slider("Umkreis (km)", 1, 50, 15)
-
-if st.button("🔍 Suchen", type="primary"):
-    with st.spinner("Suche läuft..."):
-        # Standort finden
-        geo = Nominatim(user_agent="KletterKompass").geocode(adr + ", Friesland")
-        
-        # Daten direkt aus MySQL holen
-        conn = get_db_connection()
-        if conn:
-            try:
-                df = pd.read_sql("SELECT * FROM spielplaetze", conn)
-                conn.close()
-                
-                if geo and not df.empty:
-                    df['distanz'] = df.apply(lambda r: distanz(geo.latitude, geo.longitude, r['lat'], r['lon']), axis=1)
-                    res = df[df['distanz'] <= km].sort_values('distanz')
-                    
-                    if not res.empty:
-                        c1, c2 = st.columns([1, 1])
-                        with c1:
-                            for i, r in res.iterrows():
-                                with st.expander(f"📍 {r['standort']} ({round(r['distanz'], 1)} km)"):
-                                    st.write(f"👶 Alter: {r.get('altersfreigabe', 'n.V.')}")
-                                    st.progress(int(r.get('auslastung', 0)) / 100)
-                        with c2:
-                            fig = px.scatter_mapbox(res, lat="lat", lon="lon", hover_name="standort", zoom=12)
-                            fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
-                            st.plotly_chart(fig, width='stretch')
-                    else:
-                        st.warning("Keine Spielplätze in der Datenbank gefunden.")
-                else:
-                    st.error("Ort nicht gefunden oder Datenbank ist noch leer.")
-            except Exception as e:
-                st.error(f"Fehler bei der Abfrage: {e}")
+def sende_bewertung(spiel_id, sterne):
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            query = "INSERT INTO bewertungen (spiel_id, nutzer_id, sterne) VALUES (%s, %s, %s)"
+            cursor.execute(query, (spiel_id, st.session_state.nutzer_id, sterne))
+            conn.commit()
+            st.toast(f"Top! {sterne} Sterne gespeichert! 🛝")
+            cursor.close()
+            conn.close()
+        except Exception as e:
+            st.error(f"Bewertung konnte nicht gespeichert werden: {e}")
 
 # --- 3. SESSION STATE ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -75,8 +68,6 @@ if 'rolle' not in st.session_state: st.session_state.rolle = "gast"
 if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
 
 # --- 4. SIDEBAR ---
-from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
-
 with st.sidebar:
     display_sidebar_logo()  
     st.info("✨ **BETA-PHASE**")
@@ -103,6 +94,8 @@ with st.sidebar:
         st.markdown(f"Eingeloggt als: **{st.session_state.rolle}**")
         if st.button("🚪 Logout", width='stretch', key="nav_logout"):
             st.session_state.logged_in = False
+            st.session_state.nutzer_id = None
+            st.session_state.rolle = "gast"
             st.rerun()
     else:
         t1, t2 = st.tabs(["🔑 Login", "📝 Registrieren"])
@@ -121,21 +114,25 @@ with st.sidebar:
         with t2:
             reg_u = st.text_input("Nutzername", key="reg_u")
             reg_p = st.text_input("Passwort", type="password", key="reg_p")
+            reg_v = st.text_input("Vorname", key="reg_v")
+            reg_n = st.text_input("Nachname", key="reg_n")
             reg_m = st.text_input("E-Mail", key="reg_m")
             reg_agb = st.checkbox("AGB akzeptieren", key="reg_agb")
             
             if st.button("Konto erstellen", width='stretch', key="btn_reg_submit"):
-                if reg_agb and reg_u and reg_p:
+                if reg_agb and all([reg_u, reg_p, reg_v, reg_n, reg_m]):
                     conn = get_db_connection()
                     if conn:
-                        cursor = conn.cursor()
                         try:
-                            cursor.execute("INSERT INTO nutzer (benutzername, passwort, email, rolle) VALUES (%s, %s, %s, 'user')", (reg_u, reg_p, reg_m))
+                            cursor = conn.cursor()
+                            cursor.execute("INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, rolle) VALUES (%s, %s, %s, %s, %s, 'user')", 
+                                           (reg_u, reg_p, reg_m, reg_v, reg_n))
                             conn.commit()
                             st.success("Erfolg! Bitte jetzt einloggen.")
                             st.balloons()
-                        except: st.error("Nutzername vergeben.")
-                        conn.close()
+                            conn.close()
+                        except: st.error("Nutzername oder E-Mail bereits vergeben.")
+                else: st.warning("Bitte alles ausfüllen & AGB bestätigen.")
 
 # --- 5. HAUPTSEITE ---
 st.warning("🚧 Beta-Modus aktiv.")
@@ -157,18 +154,19 @@ if st.session_state.wahl == "📍 Suche":
                 res = df[df['distanz'] <= km].sort_values('distanz')
                 
                 if res.empty:
-                    st.warning("Keine Spielplätze gefunden.")
+                    st.warning(f"Keine Ergebnisse für '{adr}' im Umkreis gefunden.")
                 else:
                     cl, cm = st.columns([1, 1])
                     with cl:
                         for i, r in res.iterrows():
                             with st.expander(f"📍 {r['standort']} ({round(r['distanz'], 1)} km)"):
                                 wt, wi = get_weather(r['lat'], r['lon'])
-                                st.write(f"🌡️ {wt} | 👶 Alter: {r.get('altersfreigabe', 'n.V.')}")
+                                st.write(f"🌡️ {wt} | 👶 {r.get('altersfreigabe', 'n.V.')}")
                                 ausl = int(r.get('auslastung', 0))
                                 st.progress(ausl / 100, text=f"Auslastung: {ausl}%")
                                 
                                 if st.session_state.logged_in:
+                                    st.write("**Bewertung:**")
                                     b_cols = st.columns(5)
                                     for val in range(1, 6):
                                         if b_cols[val-1].button(f"{val} 🛝", key=f"r_{r['spiel_id']}_{val}"):
@@ -187,19 +185,52 @@ elif st.session_state.wahl == "👤 Profil":
         u = user_df.iloc[0]
         with st.form("edit_profil"):
             v = st.text_input("Vorname", value=u.get('vorname', ''))
+            n = st.text_input("Nachname", value=u.get('nachname', ''))
             m = st.text_input("E-Mail", value=u.get('email', ''))
             if st.form_submit_button("Speichern"):
                 conn = get_db_connection()
+                if conn:
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE nutzer SET vorname=%s, nachname=%s, email=%s WHERE nutzer_id=%s", (v, n, m, st.session_state.nutzer_id))
+                    conn.commit()
+                    conn.close()
+                    st.success("Profil aktualisiert!")
+    else: st.error("Bitte logge dich erst ein.")
+
+elif st.session_state.wahl == "💬 Feedback":
+    display_page_header()
+    st.title("Feedback & Hilfe")
+    msg = st.text_area("Nachricht")
+    if st.button("Absenden"):
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO feedback (nutzer_id, nachricht) VALUES (%s, %s)", (st.session_state.nutzer_id or 0, msg))
+            conn.commit()
+            conn.close()
+            st.success("Gesendet!")
+
+elif st.session_state.wahl == "🏗️ Vorschlag":
+    display_page_header()
+    st.title("Neuen Platz melden")
+    with st.form("vorschlag"):
+        name = st.text_input("Name des Platzes")
+        adr_v = st.text_input("Genaue Adresse")
+        if st.form_submit_button("Vorschlag senden"):
+            st.success("Vielen Dank! Wir prüfen den Vorschlag.")
+
+elif st.session_state.wahl == "🛠️ Admin":
+    display_page_header()
+    st.title("Admin Dashboard")
+    df_v = hole_df_aus_db("SELECT * FROM spielplaetze WHERE status='ausstehend'")
+    if df_v.empty: st.info("Keine neuen Vorschläge zur Prüfung.")
+    else:
+        for i, v in df_v.iterrows():
+            st.write(f"Prüfung: {v['standort']}")
+            if st.button(f"✅ Freigeben {v['spiel_id']}"):
+                conn = get_db_connection()
                 cursor = conn.cursor()
-                cursor.execute("UPDATE nutzer SET vorname=%s, email=%s WHERE nutzer_id=%s", (v, m, st.session_state.nutzer_id))
+                cursor.execute("UPDATE spielplaetze SET status='aktiv' WHERE spiel_id=%s", (v['spiel_id'],))
                 conn.commit()
                 conn.close()
-                st.success("Profil aktualisiert!")
-    else: st.error("Profil nicht gefunden.")
-
-# Feedback & Vorschläge (analog direkt in DB speichern)
-elif st.session_state.wahl == "💬 Feedback":
-    st.title("Feedback")
-    msg = st.text_area("Deine Nachricht")
-    if st.button("Absenden"):
-        st.success("Danke! (In der Vollversion wird das jetzt in der DB gespeichert)")
+                st.rerun()
