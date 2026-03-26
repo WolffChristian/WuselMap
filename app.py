@@ -1,17 +1,16 @@
 import streamlit as st
+import mysql.connector
 import pandas as pd
-import requests
 import plotly.express as px
 from geopy.geocoders import Nominatim
 import numpy as np
-import mysql.connector
 
-# --- 1. SETUP & DATENBANK ---
-st.set_page_config(page_title="KletterKompass BETA", layout="wide")
+# --- 1. SETUP ---
+st.set_page_config(page_title="KletterKompass Varel", layout="wide")
 
 def get_db_connection():
     try:
-        conn = mysql.connector.connect(
+        return mysql.connector.connect(
             host=st.secrets["DB_HOST"],
             user=st.secrets["DB_USER"],
             password=st.secrets["DB_PASSWORD"],
@@ -19,32 +18,9 @@ def get_db_connection():
             database=st.secrets["DB_NAME"],
             ssl_mode="REQUIRED"
         )
-        return conn
     except Exception as e:
         st.error(f"Datenbank-Verbindung fehlgeschlagen: {e}")
         return None
-
-# Hilfsfunktion für SQL-Abfragen in DataFrames
-def hole_df_aus_db(query, params=None):
-    conn = get_db_connection()
-    if conn:
-        try:
-            df = pd.read_sql(query, conn, params=params)
-            conn.close()
-            return df
-        except Exception as e:
-            st.error(f"Fehler bei Abfrage: {e}")
-            return pd.DataFrame()
-    return pd.DataFrame()
-
-# --- 2. HILFSFUNKTIONEN ---
-def get_weather(lat, lon):
-    # Direkter API-Aufruf (Fallback, falls Backend fehlt)
-    try:
-        url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid=dein_api_key&units=metric&lang=de"
-        # Hinweis: Hier müsste dein echter API-Key rein oder wir nutzen einen Dummy-Wert
-        return "20°C, Sonnig", "01d" 
-    except: return "Wetter n.V.", None
 
 def distanz(lat1, lon1, lat2, lon2):
     R = 6371
@@ -52,19 +28,45 @@ def distanz(lat1, lon1, lat2, lon2):
     a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
-def sende_bewertung(spiel_id, sterne):
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            query = "INSERT INTO bewertungen (spiel_id, nutzer_id, sterne) VALUES (%s, %s, %s)"
-            cursor.execute(query, (spiel_id, st.session_state.nutzer_id, sterne))
-            conn.commit()
-            st.toast(f"Top! {sterne} Sterne gespeichert! 🛝")
-            cursor.close()
-            conn.close()
-        except Exception as e:
-            st.error(f"Fehler beim Bewerten: {e}")
+# --- 2. HAUPTSEITE ---
+st.title("🧗 KletterKompass Varel")
+
+adr = st.text_input("Wo suchst du?", "Varel")
+km = st.slider("Umkreis (km)", 1, 50, 15)
+
+if st.button("🔍 Suchen", type="primary"):
+    with st.spinner("Suche läuft..."):
+        # Standort finden
+        geo = Nominatim(user_agent="KletterKompass").geocode(adr + ", Friesland")
+        
+        # Daten direkt aus MySQL holen
+        conn = get_db_connection()
+        if conn:
+            try:
+                df = pd.read_sql("SELECT * FROM spielplaetze", conn)
+                conn.close()
+                
+                if geo and not df.empty:
+                    df['distanz'] = df.apply(lambda r: distanz(geo.latitude, geo.longitude, r['lat'], r['lon']), axis=1)
+                    res = df[df['distanz'] <= km].sort_values('distanz')
+                    
+                    if not res.empty:
+                        c1, c2 = st.columns([1, 1])
+                        with c1:
+                            for i, r in res.iterrows():
+                                with st.expander(f"📍 {r['standort']} ({round(r['distanz'], 1)} km)"):
+                                    st.write(f"👶 Alter: {r.get('altersfreigabe', 'n.V.')}")
+                                    st.progress(int(r.get('auslastung', 0)) / 100)
+                        with c2:
+                            fig = px.scatter_mapbox(res, lat="lat", lon="lon", hover_name="standort", zoom=12)
+                            fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
+                            st.plotly_chart(fig, width='stretch')
+                    else:
+                        st.warning("Keine Spielplätze in der Datenbank gefunden.")
+                else:
+                    st.error("Ort nicht gefunden oder Datenbank ist noch leer.")
+            except Exception as e:
+                st.error(f"Fehler bei der Abfrage: {e}")
 
 # --- 3. SESSION STATE ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
