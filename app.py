@@ -8,13 +8,20 @@ import time
 from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
 import mysql.connector
 
-db_config = {
-    'host': st.secrets["DB_HOST"],
-    'user': st.secrets["DB_USER"],
-    'password': st.secrets["DB_PASSWORD"],
-    'port': st.secrets["DB_PORT"],
-    'database': st.secrets["DB_NAME"]
-}
+# Verbindung zur Aiven-Datenbank herstellen
+def get_db_connection():
+    try:
+        conn = mysql.connector.connect(
+            host=st.secrets["DB_HOST"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASSWORD"],
+            port=int(st.secrets["DB_PORT"]),
+            database=st.secrets["DB_NAME"]
+        )
+        return conn
+    except Exception as e:
+        st.error(f"Datenbank-Fehler: {e}")
+        return None
 
 
 # --- 1. SETUP ---
