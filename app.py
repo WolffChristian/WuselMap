@@ -46,7 +46,7 @@ def distanz(lat1, lon1, lat2, lon2):
 def get_weather(lat, lon):
     try:
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
-        response = requests.get(url).json()
+        response = requests.get(url, timeout=5).json()
         return response['current_weather']
     except:
         return None
@@ -136,19 +136,14 @@ if st.session_state.wahl == "📍 Suche":
     with c2: km = st.slider("Radius (km)", 1, 50, 15)
     
     if st.button("🔍 Suchen", type="primary"):
-        with st.spinner("Daten werden abgerufen..."):
+        with st.spinner("Suche läuft..."):
             try:
                 geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                 results = geocoder.geocode(adr + ", Friesland")
                 if results and len(results) > 0:
-                    lat = results[0]['geometry']['lat']
-                    lon = results[0]['geometry']['lng']
-                    geo = type('obj', (object,), {'latitude': lat, 'longitude': lon})
-                    
-                    # Wetter abrufen
-                    w = get_weather(lat, lon)
-                    if w:
-                        st.metric(label=f"Wetter in {adr}", value=f"{w['temperature']} °C", delta=f"Wind: {w['windspeed']} km/h")
+                    lat_suche = results[0]['geometry']['lat']
+                    lon_suche = results[0]['geometry']['lng']
+                    geo = type('obj', (object,), {'latitude': lat_suche, 'longitude': lon_suche})
                 else:
                     st.error("Ort nicht gefunden.")
                     geo = None
@@ -160,22 +155,48 @@ if st.session_state.wahl == "📍 Suche":
             if geo and not df.empty:
                 df['distanz'] = df.apply(lambda r: distanz(geo.latitude, geo.longitude, r['lat'], r['lon']), axis=1)
                 res = df[df['distanz'] <= km].sort_values('distanz')
+                
                 if not res.empty:
                     cl, cm = st.columns([1, 1])
                     with cl:
                         for i, r in res.iterrows():
                             with st.expander(f"📍 {r['standort']} ({round(r['distanz'], 1)} km)"):
-                                st.write(f"👶 Alter: {r.get('altersfreigabe', 'n.V.')}")
+                                st.write(f"**👶 Altersfreigabe:** {r.get('altersfreigabe', 'n.V.')}")
                                 ausl = int(r.get('auslastung', 0))
                                 st.progress(ausl / 100, text=f"Auslastung: {ausl}%")
+                                
+                                # NEU: Wetter wird jetzt HIER für jeden Platz einzeln geladen
+                                w = get_weather(r['lat'], r['lon'])
+                                if w:
+                                    st.write("---")
+                                    st.markdown(f"🌡️ **Wetter vor Ort:** {w['temperature']} °C")
+                                    st.markdown(f"💨 Wind: {w['windspeed']} km/h")
+                                else:
+                                    st.caption("Wetterdaten nicht verfügbar.")
+                    
                     with cm:
-                        # FIX: Karte mit Punkten anzeigen
-                        fig = px.scatter_mapbox(res, lat="lat", lon="lon", hover_name="standort", color_discrete_sequence=["#00FF00"], zoom=12)
-                        fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
+                        # FIX: Karte mit deutlichen Punkten
+                        fig = px.scatter_mapbox(
+                            res, 
+                            lat="lat", 
+                            lon="lon", 
+                            hover_name="standort", 
+                            color_discrete_sequence=["#00FF00"], 
+                            zoom=11,
+                            size_max=15
+                        )
+                        fig.update_layout(
+                            mapbox_style="open-street-map", 
+                            margin={"r":0,"t":0,"l":0,"b":0},
+                            showlegend=False
+                        )
                         st.plotly_chart(fig, use_container_width=True)
-                else: st.warning("Keine Spielplätze im Umkreis gefunden.")
-            elif not geo: pass
-            else: st.error("Datenbank leer.")
+                else:
+                    st.warning("Keine Spielplätze im Umkreis gefunden.")
+            elif not geo:
+                pass
+            else:
+                st.error("Datenbank leer oder Fehler.")
 
 elif st.session_state.wahl == "📄 Rechtliches":
     show_legal_page()
@@ -189,7 +210,7 @@ elif st.session_state.wahl == "👤 Profil":
         st.write(f"**Name:** {u.get('vorname', '')} {u.get('nachname', '')}")
         st.write(f"**E-Mail:** {u.get('email', '')}")
         st.write(f"**Alter:** {u.get('alter_nutzer', 0)} Jahre")
-    else: st.error("Bitte logge dich erst ein.")
+    else: st.error("Logge dich ein, um dein Profil zu sehen.")
 
 elif st.session_state.wahl == "💬 Feedback":
     display_page_header()
@@ -209,7 +230,7 @@ elif st.session_state.wahl == "🏗️ Vorschlag":
     st.title("Platz melden")
     with st.form("v"):
         n = st.text_input("Name des Platzes")
-        if st.form_submit_button("Senden"): st.success("Vorschlag eingereicht!")
+        if st.form_submit_button("Senden"): st.success("Eingereicht!")
 
 elif st.session_state.wahl == "🛠️ Admin":
     if st.session_state.rolle == "admin":
