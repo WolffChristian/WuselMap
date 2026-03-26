@@ -4,6 +4,7 @@ import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
 import mysql.connector
+import requests
 from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
 from legal import show_legal_page
 
@@ -42,6 +43,14 @@ def distanz(lat1, lon1, lat2, lon2):
     a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
+def get_weather(lat, lon):
+    try:
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+        response = requests.get(url).json()
+        return response['current_weather']
+    except:
+        return None
+
 # --- 2. SESSION STATE ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'nutzer_id' not in st.session_state: st.session_state.nutzer_id = None
@@ -62,12 +71,10 @@ with st.sidebar:
     st.write("---")
 
     if st.session_state.logged_in:
-        # Standard-Bereiche für jeden Nutzer
         if st.button("👤 Mein Profil", width='stretch'): st.session_state.wahl = "👤 Profil"
         if st.button("💬 Feedback geben", width='stretch'): st.session_state.wahl = "💬 Feedback"
         if st.button("🏗️ Neuen Platz melden", width='stretch'): st.session_state.wahl = "🏗️ Vorschlag"
         
-        # ADMIN-RIEGEL: Nur sichtbar für Nutzer mit der Rolle 'admin'
         if st.session_state.rolle == "admin":
             st.markdown("### 🔐 Admin-Zone")
             if st.button("📊 Admin-Dashboard", width='stretch'): 
@@ -111,7 +118,6 @@ with st.sidebar:
                     if conn:
                         try:
                             cursor = conn.cursor()
-                            # WICHTIG: Neue Nutzer sind immer standardmäßig 'user'
                             sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_nutzer, rolle) VALUES (%s, %s, %s, %s, %s, %s, 'user')"
                             cursor.execute(sql, (reg_u, reg_p, reg_m, reg_v, reg_n, reg_a))
                             conn.commit()
@@ -130,15 +136,19 @@ if st.session_state.wahl == "📍 Suche":
     with c2: km = st.slider("Radius (km)", 1, 50, 15)
     
     if st.button("🔍 Suchen", type="primary"):
-        with st.spinner("Suche läuft..."):
+        with st.spinner("Daten werden abgerufen..."):
             try:
                 geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                 results = geocoder.geocode(adr + ", Friesland")
                 if results and len(results) > 0:
-                    geo = type('obj', (object,), {
-                        'latitude': results[0]['geometry']['lat'],
-                        'longitude': results[0]['geometry']['lng']
-                    })
+                    lat = results[0]['geometry']['lat']
+                    lon = results[0]['geometry']['lng']
+                    geo = type('obj', (object,), {'latitude': lat, 'longitude': lon})
+                    
+                    # Wetter abrufen
+                    w = get_weather(lat, lon)
+                    if w:
+                        st.metric(label=f"Wetter in {adr}", value=f"{w['temperature']} °C", delta=f"Wind: {w['windspeed']} km/h")
                 else:
                     st.error("Ort nicht gefunden.")
                     geo = None
@@ -159,10 +169,11 @@ if st.session_state.wahl == "📍 Suche":
                                 ausl = int(r.get('auslastung', 0))
                                 st.progress(ausl / 100, text=f"Auslastung: {ausl}%")
                     with cm:
-                        fig = px.scatter_mapbox(res, lat="lat", lon="lon", hover_name="standort", zoom=11)
+                        # FIX: Karte mit Punkten anzeigen
+                        fig = px.scatter_mapbox(res, lat="lat", lon="lon", hover_name="standort", color_discrete_sequence=["#00FF00"], zoom=12)
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
                         st.plotly_chart(fig, use_container_width=True)
-                else: st.warning("Nichts gefunden.")
+                else: st.warning("Keine Spielplätze im Umkreis gefunden.")
             elif not geo: pass
             else: st.error("Datenbank leer.")
 
@@ -201,7 +212,6 @@ elif st.session_state.wahl == "🏗️ Vorschlag":
         if st.form_submit_button("Senden"): st.success("Vorschlag eingereicht!")
 
 elif st.session_state.wahl == "🛠️ Admin":
-    # ZUSÄTZLICHER SCHUTZ: Falls jemand die URL errät
     if st.session_state.rolle == "admin":
         display_page_header()
         st.title("Admin-Dashboard")
