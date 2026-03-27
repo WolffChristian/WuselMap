@@ -1,27 +1,21 @@
 import streamlit as st
 
 def show_legal_page():
-    st.title("📄 Rechtliche Informationen")
+    st.title("📄 AGB & Datenschutz")
+    st.write("---")
     
-    tab1, tab2 = st.tabs(["AGB", "Datenschutz"])
+    st.header("1. Datenschutz & Fotos")
+    st.info("""
+    **Besondere Regelung für Bildmaterial:**
+    Beim Hochladen von Fotos verpflichtet sich der Nutzer, keine Personen (insbesondere Kinder) erkennbar darzustellen. 
+    Fotos dürfen lediglich Spielgeräte, Gelände und öffentliche Parkanlagen zeigen.
+    """)
     
-    with tab1:
-        st.header("Allgemeine Geschäftsbedingungen")
-        st.markdown("""
-        1. **Nutzung:** Der KletterKompass dient der Information über öffentliche Spielplätze.
-        2. **Inhalte:** Alle Angaben (Standorte, Auslastung) sind ohne Gewähr.
-        3. **Account:** Du bist für die Sicherheit deines Passworts selbst verantwortlich.
-        """)
-        
-    with tab2:
-        st.header("Datenschutzerklärung")
-        st.markdown("""
-        **Datenverarbeitung:** Wir speichern deinen Nutzernamen und deine E-Mail bei unserem Partner Aiven (MySQL). 
-        Diese Daten werden niemals an Dritte weitergegeben.
-        
-        **Cookies:** Wir nutzen nur technisch notwendige Cookies von Streamlit.
-        """)
+    st.header("2. Prüfungsvorbehalt")
+    st.write("""
+    Alle eingereichten Vorschläge und Fotos werden durch das Admin-Team manuell geprüft. 
+    Wir behalten uns vor, Bilder bei Verstößen gegen das Persönlichkeitsrecht oder bei unzureichender Qualität ohne Rücksprache zu löschen.
+    """)
     
-    if st.button("⬅️ Zurück zur Suche"):
-        st.session_state.wahl = "📍 Suche"
-        st.rerun()
+    st.header("3. Haftung")
+    st.write("Die Nutzung der App erfolgt auf eigene Gefahr. Für die Richtigkeit der Standortdaten übernehmen wir keine Gewähr.")
