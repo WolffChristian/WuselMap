@@ -4,6 +4,7 @@ import pandas as pd
 import hashlib
 
 def hash_passwort(passwort):
+    """Verschlüsselt das Passwort unwiderruflich."""
     return hashlib.sha256(str.encode(passwort)).hexdigest()
 
 def get_db_connection():
@@ -17,7 +18,7 @@ def get_db_connection():
             ssl_disabled=False 
         )
     except Exception as e:
-        st.error(f"Datenbank-Fehler: {e}")
+        st.error(f"Datenbank-Verbindung fehlgeschlagen: {e}")
         return None
 
 def hole_df(query, params=None):
@@ -28,7 +29,7 @@ def hole_df(query, params=None):
             conn.close()
             return df
         except Exception as e:
-            st.error(f"Abfrage-Fehler: {e}")
+            st.error(f"Fehler beim Laden der Daten: {e}")
             return pd.DataFrame()
     return pd.DataFrame()
 
@@ -42,6 +43,6 @@ def ausfuehren(query, params=None):
             conn.close()
             return True
         except Exception as e:
-            st.error(f"Speicher-Fehler: {e}")
+            st.error(f"Fehler beim Speichern: {e}")
             return False
     return False
