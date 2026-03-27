@@ -5,14 +5,13 @@ from opencage.geocoder import OpenCageGeocode
 import numpy as np
 import requests
 
-from database_manager import hole_df, ausfuehren, get_db_connection
+# Unsere Spezial-Importe
+from database_manager import hole_df, ausfuehren, get_db_connection, hash_passwort
 from auth_manager import login_bereich
 from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
 from legal import show_legal_page
 
-# --- Konfiguration ---
-st.set_page_config(page_title="KletterKompass Varel", layout="wide")
-
+# --- Hilfsfunktionen ---
 def distanz(lat1, lon1, lat2, lon2):
     R = 6371
     dlat, dlon = np.radians(lat2-lat1), np.radians(lon2-lon1)
@@ -25,23 +24,27 @@ def get_weather(lat, lon):
         return requests.get(url, timeout=5).json()['current_weather']
     except: return None
 
+# --- Konfiguration ---
+st.set_page_config(page_title="KletterKompass Varel", layout="wide")
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
 
 # --- Sidebar Navigation ---
 with st.sidebar:
     display_sidebar_logo()
-    if st.button("📍 Suche", width='stretch'): st.session_state.wahl = "📍 Suche"
+    if st.button("📍 Spielplatz suchen", width='stretch'): st.session_state.wahl = "📍 Suche"
     if st.button("📄 Rechtliches", width='stretch'): st.session_state.wahl = "📄 Rechtliches"
     st.write("---")
     
     if st.session_state.logged_in:
-        if st.button("👤 Profil", width='stretch'): st.session_state.wahl = "👤 Profil"
-        if st.button("🏗️ Melden", width='stretch'): st.session_state.wahl = "🏗️ Vorschlag"
-        if st.button("💬 Feedback", width='stretch'): st.session_state.wahl = "💬 Feedback"
+        if st.button("👤 Mein Profil", width='stretch'): st.session_state.wahl = "👤 Profil"
+        if st.button("🏗️ Neuen Platz melden", width='stretch'): st.session_state.wahl = "🏗️ Vorschlag"
+        if st.button("💬 Feedback geben", width='stretch'): st.session_state.wahl = "💬 Feedback"
+        
         if st.session_state.rolle == "admin":
             st.markdown("### 🔐 Admin-Zone")
-            if st.button("📊 Dashboard", width='stretch'): st.session_state.wahl = "🛠️ Admin"
+            if st.button("📊 Admin-Dashboard", width='stretch'): st.session_state.wahl = "🛠️ Admin"
+        
         st.write("---")
         if st.button("🚪 Logout", width='stretch'):
             st.session_state.clear()
@@ -49,15 +52,15 @@ with st.sidebar:
     else:
         login_bereich()
 
-# --- Seiteninhalte ---
+# --- Hauptseiten-Inhalte ---
 if st.session_state.wahl == "📍 Suche":
     display_home_banner()
-    st.title("Spielplätze & Parks")
-    col_a, col_b = st.columns([3, 1])
-    with col_a: adr = st.text_input("Adresse", "Varel")
-    with col_b: km = st.slider("Radius (km)", 1, 50, 15)
+    st.title("Finde Spielplätze & Parks")
+    c1, c2 = st.columns([3, 1])
+    with c1: adr = st.text_input("Dein Standort", "Varel")
+    with c2: km = st.slider("Radius (km)", 1, 50, 15)
     
-    if st.button("🔍 Ergebnisse anzeigen", type="primary"):
+    if st.button("🔍 Suchen", type="primary"):
         geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
         res_g = geocoder.geocode(adr + ", Friesland")
         if res_g:
@@ -71,24 +74,78 @@ if st.session_state.wahl == "📍 Suche":
                 with cl:
                     for i, r in final.iterrows():
                         with st.expander(f"📍 {r['standort']} ({round(r['distanz'], 1)} km)"):
-                            st.write(f"Altersfreigabe: {r['altersfreigabe']}")
+                            st.write(f"**👶 Altersfreigabe:** {r['altersfreigabe']}")
+                            st.progress(int(r['auslastung'])/100)
                             w = get_weather(r['lat'], r['lon'])
-                            if w: st.info(f"Wetter: {w['temperature']}°C")
+                            if w: st.info(f"🌡️ Wetter: {w['temperature']}°C")
                 with cr:
                     fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="standort", color_discrete_sequence=["#FF0000"], zoom=11)
                     fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
                     st.plotly_chart(fig, use_container_width=True)
 
-elif st.session_state.wahl == "🛠️ Admin" and st.session_state.rolle == "admin":
+elif st.session_state.wahl == "👤 Profil":
     display_page_header()
-    st.title("Admin-Dashboard")
-    t_u, t_v = st.tabs(["Benutzer", "Vorschläge"])
-    with t_u:
-        st.dataframe(hole_df("SELECT nutzer_id, benutzername, email, rolle FROM nutzer"))
-    with t_v:
-        # Hier werden die eingereichten Orte mit Bildern geladen
-        vorschlaege = hole_df("SELECT * FROM vorschlaege ORDER BY zeitstempel DESC")
-        st.dataframe(vorschlaege)
+    st.title("👤 Mein Profil")
+    df_p = hole_df("SELECT * FROM nutzer WHERE nutzer_id=%s", (st.session_state.nutzer_id,))
+    if not df_p.empty:
+        u = df_p.iloc[0]
+        st.write(f"**Name:** {u['vorname']} {u['nachname']}")
+        st.write(f"**Benutzer:** {u['benutzername']}")
+        st.write(f"**E-Mail:** {u['email']}")
+        st.write(f"**Alter:** {u['alter_wert']} Jahre")
+        st.write(f"**Status:** {u['rolle'].upper()}")
+        
+        st.write("---")
+        with st.expander("Passwort ändern"):
+            p1 = st.text_input("Neues Passwort", type="password")
+            if st.button("Passwort jetzt aktualisieren"):
+                if ausfuehren("UPDATE nutzer SET passwort=%s WHERE nutzer_id=%s", (hash_passwort(p1), st.session_state.nutzer_id)):
+                    st.success("Passwort geändert!")
+
+elif st.session_state.wahl == "🏗️ Vorschlag":
+    display_page_header()
+    st.title("🏗️ Neuen Platz melden")
+    with st.form("v_form", clear_on_submit=True):
+        name = st.text_input("Name des Ortes")
+        adr = st.text_input("Genaue Adresse")
+        kat = st.radio("Kategorie", ["Spielplatz", "Park", "Freizeitpark"], horizontal=True)
+        aus = st.multiselect("Ausstattung", ["Rutsche", "Schaukel", "Sandkasten", "Seilbahn", "Klettergerüst", "Wasserspiel"])
+        bild = st.file_uploader("Bild (optional)", type=['jpg', 'png'])
+        if st.form_submit_button("Vorschlag einreichen"):
+            b_data = bild.read() if bild else None
+            sql = "INSERT INTO vorschlaege (nutzer_id, platz_name, adresse, kategorie, ausstattung, bild) VALUES (%s,%s,%s,%s,%s,%s)"
+            if ausfuehren(sql, (st.session_state.nutzer_id, name, adr, kat, ",".join(aus), b_data)):
+                st.success("Danke! Wir prüfen deinen Vorschlag.")
+                st.balloons()
+
+elif st.session_state.wahl == "💬 Feedback":
+    display_page_header()
+    st.title("💬 Dein Feedback")
+    msg = st.text_area("Wie gefällt dir die App?")
+    if st.button("Feedback senden"):
+        if ausfuehren("INSERT INTO feedback (nutzer_id, nachricht) VALUES (%s,%s)", (st.session_state.nutzer_id, msg)):
+            st.success("Vielen Dank!")
 
 elif st.session_state.wahl == "📄 Rechtliches":
     show_legal_page()
+
+elif st.session_state.wahl == "🛠️ Admin":
+    display_page_header()
+    st.title("🛠️ Admin-Dashboard")
+    t1, t2, t3 = st.tabs(["👥 Nutzer", "💬 Feedback", "📝 Vorschläge"])
+    with t1:
+        st.dataframe(hole_df("SELECT nutzer_id, benutzername, email, rolle FROM nutzer"))
+    with t2:
+        st.dataframe(hole_df("SELECT * FROM feedback ORDER BY zeitstempel DESC"))
+    with t3:
+        conn = get_db_connection()
+        if conn:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM vorschlaege ORDER BY zeitstempel DESC")
+            for v in cursor.fetchall():
+                with st.expander(f"📝 {v['platz_name']} ({v['kategorie']})"):
+                    c1, c2 = st.columns(2)
+                    with c1: st.write(f"**Adresse:** {v['adresse']}\n**Ausstattung:** {v['ausstattung']}")
+                    with c2: 
+                        if v['bild']: st.image(v['bild'], width=200)
+            conn.close()
