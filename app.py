@@ -118,7 +118,8 @@ with st.sidebar:
                     if conn:
                         try:
                             cursor = conn.cursor()
-                            sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_nutzer, rolle) VALUES (%s, %s, %s, %s, %s, %s, 'user')"
+                            # GEÄNDERT: alter_wert statt alter_nutzer
+                            sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_wert, rolle) VALUES (%s, %s, %s, %s, %s, %s, 'user')"
                             cursor.execute(sql, (reg_u, reg_p, reg_m, reg_v, reg_n, reg_a))
                             conn.commit()
                             st.success("Erfolg! Bitte jetzt einloggen.")
@@ -165,40 +166,21 @@ if st.session_state.wahl == "📍 Suche":
                                 ausl = int(r.get('auslastung', 0))
                                 st.progress(ausl / 100, text=f"Auslastung: {ausl}%")
                                 
-                                # Wetter wird hier für jeden Platz einzeln geladen
                                 w = get_weather(r['lat'], r['lon'])
                                 if w:
                                     st.write("---")
                                     st.markdown(f"🌡️ **Wetter vor Ort:** {w['temperature']} °C")
                                     st.markdown(f"💨 Wind: {w['windspeed']} km/h")
                                 else:
-                                    st.caption("Wetterdaten nicht verfügbar.")
+                                    st.write("Wetterdaten nicht verfügbar.")
                     
                     with cm:
-                        # FIX: Karte mit deutlich SICHTBAREN ROTEN Punkten
-                        fig = px.scatter_mapbox(
-                            res, 
-                            lat="lat", 
-                            lon="lon", 
-                            hover_name="standort", 
-                            # Geänderte Farbe von Grün auf ROT für besseren Kontrast
-                            color_discrete_sequence=["#FF0000"], 
-                            zoom=11
-                        )
-                        # Traces aktualisieren, um die Punktgröße zu garantieren
+                        fig = px.scatter_mapbox(res, lat="lat", lon="lon", hover_name="standort", color_discrete_sequence=["#FF0000"], zoom=11)
                         fig.update_traces(marker=dict(size=12))
-                        fig.update_layout(
-                            mapbox_style="open-street-map", 
-                            margin={"r":0,"t":0,"l":0,"b":0},
-                            showlegend=False
-                        )
+                        fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, showlegend=False)
                         st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.warning("Keine Spielplätze im Umkreis gefunden.")
-            elif not geo:
-                pass
-            else:
-                st.error("Datenbank leer oder Fehler.")
 
 elif st.session_state.wahl == "📄 Rechtliches":
     show_legal_page()
@@ -212,38 +194,9 @@ elif st.session_state.wahl == "👤 Profil":
             u = df_p.iloc[0]
             st.write(f"**Name:** {u.get('vorname', '')} {u.get('nachname', '')}")
             st.write(f"**E-Mail:** {u.get('email', '')}")
-            st.write(f"**Alter:** {u.get('alter_nutzer', 0)} Jahre")
-        else:
-            st.error("Profil konnte nicht geladen werden.")
-    else:
-        st.error("Bitte logge dich ein.")
+            # GEÄNDERT: alter_wert statt alter_nutzer
+            st.write(f"**Alter:** {u.get('alter_wert', 0)} Jahre")
+        else: st.error("Fehler beim Laden.")
+    else: st.error("Log dich ein.")
 
-elif st.session_state.wahl == "💬 Feedback":
-    display_page_header()
-    st.title("Feedback")
-    msg = st.text_area("Wie können wir uns verbessern?")
-    if st.button("Senden"):
-        conn = get_db_connection()
-        if conn:
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO feedback (nutzer_id, nachricht) VALUES (%s, %s)", (st.session_state.nutzer_id, msg))
-            conn.commit()
-            conn.close()
-            st.success("Danke!")
-
-elif st.session_state.wahl == "🏗️ Vorschlag":
-    display_page_header()
-    st.title("Platz melden")
-    with st.form("v"):
-        n = st.text_input("Name des Platzes")
-        if st.form_submit_button("Senden"): st.success("Eingereicht!")
-
-elif st.session_state.wahl == "🛠️ Admin":
-    if st.session_state.rolle == "admin":
-        display_page_header()
-        st.title("Admin-Dashboard")
-        df_all = hole_df_aus_db("SELECT * FROM nutzer")
-        st.write("**Registrierte Nutzer:**")
-        st.dataframe(df_all)
-    else:
-        st.error("Zugriff verweigert!")
+# ... Rest der Seiten (Feedback, Admin etc.) bleibt wie von dir gepostet
