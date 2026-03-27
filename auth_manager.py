@@ -7,7 +7,6 @@ def login_bereich():
     with t1:
         u = st.text_input("Nutzername", key="l_u")
         p = st.text_input("Passwort", type="password", key="l_p")
-        # Großer Button durch 'use_container_width'
         if st.button("Anmelden", use_container_width=True):
             hashed_p = hash_passwort(p)
             df = hole_df("SELECT nutzer_id, rolle FROM nutzer WHERE benutzername=%s AND passwort=%s", (u, hashed_p))
@@ -26,25 +25,25 @@ def login_bereich():
             reg_v = st.text_input("Vorname")
             reg_n = st.text_input("Nachname")
             reg_a = st.number_input("Alter", 0, 120, 30)
-            st.info("Hinweis: Mit der Registrierung akzeptierst du die AGB und Datenschutzregeln.")
+            st.info("Mit der Registrierung akzeptierst du die AGB und Datenschutzregeln.")
             reg_agb = st.checkbox("Ich akzeptiere die AGB & Datenschutz")
             if st.form_submit_button("Konto erstellen", use_container_width=True):
                 if reg_agb and all([reg_u, reg_p, reg_m]):
                     hashed_p = hash_passwort(reg_p)
                     sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_wert, rolle) VALUES (%s,%s,%s,%s,%s,%s,'user')"
                     if ausfuehren(sql, (reg_u, hashed_p, reg_m, reg_v, reg_n, reg_a)):
-                        st.success("Erfolg! Logge dich jetzt ein.")
-                else: st.warning("Bitte alles ausfüllen.")
+                        st.success("Erfolg! Du kannst dich jetzt einloggen.")
+                else: st.warning("Bitte fülle alle Felder aus.")
 
     with t3:
         st.subheader("Passwort vergessen?")
         with st.form("reset_form"):
             res_u = st.text_input("Nutzername")
-            res_m = st.text_input("Deine E-Mail")
+            res_m = st.text_input("E-Mail Adresse")
             new_p = st.text_input("Neues Passwort", type="password")
-            if st.form_submit_button("Passwort jetzt zurücksetzen", use_container_width=True):
+            if st.form_submit_button("Passwort zurücksetzen", use_container_width=True):
                 df = hole_df("SELECT nutzer_id FROM nutzer WHERE benutzername=%s AND email=%s", (res_u, res_m))
                 if not df.empty:
                     if ausfuehren("UPDATE nutzer SET passwort=%s WHERE benutzername=%s", (hash_passwort(new_p), res_u)):
                         st.success("Passwort wurde aktualisiert!")
-                else: st.error("Daten stimmen nicht überein.")
+                else: st.error("Nutzername und E-Mail passen nicht zusammen.")
