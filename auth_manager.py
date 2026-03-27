@@ -15,7 +15,7 @@ def login_bereich():
                 st.session_state.nutzer_id = int(df.iloc[0]['nutzer_id'])
                 st.session_state.rolle = df.iloc[0]['rolle']
                 st.rerun()
-            else: st.error("Nutzername oder Passwort falsch.")
+            else: st.error("Login fehlgeschlagen.")
 
     with t2:
         with st.form("reg_form"):
@@ -25,25 +25,24 @@ def login_bereich():
             reg_v = st.text_input("Vorname")
             reg_n = st.text_input("Nachname")
             reg_a = st.number_input("Alter", 0, 120, 30)
-            st.info("Mit der Registrierung akzeptierst du die AGB und Datenschutzregeln.")
-            reg_agb = st.checkbox("Ich akzeptiere die AGB & Datenschutz")
+            reg_agb = st.checkbox("Ich akzeptiere AGB & Datenschutz")
             if st.form_submit_button("Konto erstellen", use_container_width=True):
                 if reg_agb and all([reg_u, reg_p, reg_m]):
                     hashed_p = hash_passwort(reg_p)
                     sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_wert, rolle) VALUES (%s,%s,%s,%s,%s,%s,'user')"
                     if ausfuehren(sql, (reg_u, hashed_p, reg_m, reg_v, reg_n, reg_a)):
-                        st.success("Erfolg! Du kannst dich jetzt einloggen.")
-                else: st.warning("Bitte fülle alle Felder aus.")
+                        st.success("Konto erstellt! Bitte einloggen.")
+                else: st.warning("Bitte Felder ausfüllen & AGB bestätigen.")
 
     with t3:
         st.subheader("Passwort vergessen?")
         with st.form("reset_form"):
             res_u = st.text_input("Nutzername")
-            res_m = st.text_input("E-Mail Adresse")
+            res_m = st.text_input("Deine E-Mail")
             new_p = st.text_input("Neues Passwort", type="password")
             if st.form_submit_button("Passwort zurücksetzen", use_container_width=True):
                 df = hole_df("SELECT nutzer_id FROM nutzer WHERE benutzername=%s AND email=%s", (res_u, res_m))
                 if not df.empty:
                     if ausfuehren("UPDATE nutzer SET passwort=%s WHERE benutzername=%s", (hash_passwort(new_p), res_u)):
-                        st.success("Passwort wurde aktualisiert!")
-                else: st.error("Nutzername und E-Mail passen nicht zusammen.")
+                        st.success("Erfolgreich geändert!")
+                else: st.error("Daten nicht korrekt.")
