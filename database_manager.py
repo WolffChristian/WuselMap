@@ -9,7 +9,6 @@ def hash_passwort(passwort):
     return hashlib.sha256(str.encode(passwort)).hexdigest()
 
 def image_optimieren(original_bild_datei, max_width=1000, quality=80):
-    """Verkleinert Bilder und wandelt sie in WebP um."""
     img = Image.open(original_bild_datei)
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
