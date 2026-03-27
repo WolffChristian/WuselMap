@@ -17,7 +17,7 @@ def get_db_connection():
             ssl_disabled=False 
         )
     except Exception as e:
-        st.error(f"Datenbank-Verbindungsfehler: {e}")
+        st.error(f"Datenbank-Fehler: {e}")
         return None
 
 def hole_df(query, params=None):
@@ -28,7 +28,7 @@ def hole_df(query, params=None):
             conn.close()
             return df
         except Exception as e:
-            st.error(f"Abfragefehler: {e}")
+            st.error(f"Abfrage-Fehler: {e}")
             return pd.DataFrame()
     return pd.DataFrame()
 
@@ -42,6 +42,6 @@ def ausfuehren(query, params=None):
             conn.close()
             return True
         except Exception as e:
-            st.error(f"Datenbank-Fehler: {e}")
+            st.error(f"Speicher-Fehler: {e}")
             return False
     return False
