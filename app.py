@@ -5,7 +5,8 @@ from opencage.geocoder import OpenCageGeocode
 import numpy as np
 import requests
 
-from database_manager import hole_df, ausfuehren, image_optimieren, hash_passwort
+# Spezial-Importe
+from database_manager import hole_df, ausfuehren, image_optimieren, hash_passwort, get_db_connection
 from auth_manager import login_bereich
 from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
 from legal import show_legal_page
@@ -25,16 +26,18 @@ def get_weather(lat, lon):
         return requests.get(url, timeout=5).json()['current_weather']
     except: return None
 
+# --- App Setup ---
 st.set_page_config(page_title="KletterKompass Deutschland", layout="wide")
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
 
-# Nutzerdaten für Sidebar laden
+# Nutzerdaten laden
 nutzer_daten = None
 if st.session_state.logged_in:
     df_n = hole_df("SELECT * FROM nutzer WHERE nutzer_id=%s", (st.session_state.nutzer_id,))
     if not df_n.empty: nutzer_daten = df_n.iloc[0]
 
+# --- Sidebar ---
 with st.sidebar:
     display_sidebar_logo()
     if nutzer_daten is not None:
@@ -43,20 +46,24 @@ with st.sidebar:
     if st.button("📍 Spielplatz suchen", use_container_width=True): st.session_state.wahl = "📍 Suche"
     if st.button("📄 Rechtliches", use_container_width=True): st.session_state.wahl = "📄 Rechtliches"
     st.write("---")
+    
     if st.session_state.logged_in:
         if st.button("👤 Mein Profil", use_container_width=True): st.session_state.wahl = "👤 Profil"
         if st.button("🏗️ Neuen Platz melden", use_container_width=True): st.session_state.wahl = "🏗️ Vorschlag"
         if st.button("💬 Feedback geben", use_container_width=True): st.session_state.wahl = "💬 Feedback"
+        
         if st.session_state.rolle == "admin":
             st.markdown("### 🔐 Admin-Zone")
             if st.button("📊 Admin-Dashboard", use_container_width=True): st.session_state.wahl = "🛠️ Admin"
+        
         st.write("---")
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.clear()
             st.rerun()
-    else: login_bereich()
+    else:
+        login_bereich()
 
-# SEITENLOGIK
+# --- Hauptlogik ---
 if st.session_state.wahl == "📍 Suche":
     display_home_banner()
     st.title("Spielplätze & Parks")
@@ -80,7 +87,7 @@ if st.session_state.wahl == "📍 Suche":
                             w = get_weather(r['lat'], r['lon'])
                             if w: st.info(f"Wetter: {w['temperature']}°C")
                 with cr:
-                    fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="standort", zoom=10)
+                    fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="standort", color_discrete_sequence=["#FF0000"], zoom=10)
                     fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
                     st.plotly_chart(fig, use_container_width=True)
 
@@ -122,21 +129,32 @@ elif st.session_state.wahl == "🏗️ Vorschlag":
             if ausfuehren(sql, (st.session_state.nutzer_id, p_name, p_adr, p_bund, b_data, m_art)):
                 st.success("Gesendet! Danke."); st.balloons()
 
-elif st.session_state.wahl == "🛠️ Admin":
+elif st.session_state.wahl == "💬 Feedback":
+    display_page_header()
+    st.title("💬 Feedback geben")
+    st.write("Hilf uns, den KletterKompass besser zu machen!")
+    msg = st.text_area("Deine Nachricht an uns:", height=150)
+    if st.button("Feedback senden", use_container_width=True):
+        if msg:
+            if ausfuehren("INSERT INTO feedback (nutzer_id, nachricht) VALUES (%s,%s)", (st.session_state.nutzer_id, msg)):
+                st.success("Vielen Dank! Dein Feedback ist angekommen.")
+                st.balloons()
+        else:
+            st.warning("Bitte schreibe erst etwas in das Textfeld.")
+
+elif st.session_state.wahl == "🛠️ Admin" and st.session_state.rolle == "admin":
     display_page_header()
     st.title("🛠️ Admin-Dashboard")
     t1, t2, t3 = st.tabs(["👥 Nutzer", "💬 Feedback", "📝 Vorschläge"])
     with t1:
-        # HIER: Wir lassen 'passwort' in der Abfrage einfach weg!
-        sql_u = "SELECT nutzer_id, benutzername, email, vorname, nachname, rolle, avatar_emoji FROM nutzer"
-        st.dataframe(hole_df(sql_u), use_container_width=True)
+        st.dataframe(hole_df("SELECT nutzer_id, benutzername, email, vorname, nachname, rolle, avatar_emoji FROM nutzer"), use_container_width=True)
     with t2:
         st.dataframe(hole_df("SELECT * FROM feedback ORDER BY zeitstempel DESC"), use_container_width=True)
     with t3:
         v_list = hole_df("SELECT * FROM vorschlaege ORDER BY zeitstempel DESC")
         for i, v in v_list.iterrows():
             with st.expander(f"{v['melde_typ']}: {v['platz_name']}"):
-                if v['bild']: st.image(v['bild'], width=300)
+                if v['bild']: st.image(v['bild'], use_container_width=True)
                 if st.button("Löschen", key=f"del_{v['vorschlag_id']}", use_container_width=True):
                     ausfuehren("DELETE FROM vorschlaege WHERE vorschlag_id=%s", (v['vorschlag_id'],))
                     st.rerun()
