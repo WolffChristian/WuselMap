@@ -4,7 +4,7 @@ import pandas as pd
 import hashlib
 
 def hash_passwort(passwort):
-    """Verschlüsselt das Passwort unwiderruflich."""
+    """Verschlüsselt das Passwort sicher."""
     return hashlib.sha256(str.encode(passwort)).hexdigest()
 
 def get_db_connection():
@@ -29,7 +29,7 @@ def hole_df(query, params=None):
             conn.close()
             return df
         except Exception as e:
-            st.error(f"Fehler beim Laden der Daten: {e}")
+            st.error(f"Fehler beim Laden: {e}")
             return pd.DataFrame()
     return pd.DataFrame()
 
