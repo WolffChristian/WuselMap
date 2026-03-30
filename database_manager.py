@@ -27,14 +27,18 @@ def hole_df(query, params=None):
     elif "FROM vorschlaege" in query: sheet_name = "vorschlaege"
     
     try:
+        # Versuch 1: Mit dem Namen lesen
         df = conn.read(worksheet=sheet_name, ttl="0s")
-        # Spaltennamen harmonisieren (Groß/Klein ignorieren)
-        df.columns = [c.strip() for c in df.columns]
-        if 'Lon' in df.columns: df = df.rename(columns={'Lon': 'lon'})
-        if 'Lat' in df.columns: df = df.rename(columns={'Lat': 'lat'})
         return df
-    except Exception as e:
-        st.error(f"Daten-Fehler: {e}")
+    except:
+        # Versuch 2: Falls der Name nicht erkannt wird, laden wir einfach das erste Blatt (spielplaetze)
+        if sheet_name == "spielplaetze":
+            try:
+                df = conn.read(ttl="0s")
+                return df
+            except Exception as e:
+                st.error(f"Konnte keine Daten laden: {e}")
+                return pd.DataFrame()
         return pd.DataFrame()
 
 def ausfuehren(query, params=None):
