@@ -28,9 +28,13 @@ def hole_df(query, params=None):
     
     try:
         df = conn.read(worksheet=sheet_name, ttl="0s")
+        # Spaltennamen harmonisieren (Groß/Klein ignorieren)
+        df.columns = [c.strip() for c in df.columns]
         if 'Lon' in df.columns: df = df.rename(columns={'Lon': 'lon'})
+        if 'Lat' in df.columns: df = df.rename(columns={'Lat': 'lat'})
         return df
     except Exception as e:
+        st.error(f"Daten-Fehler: {e}")
         return pd.DataFrame()
 
 def ausfuehren(query, params=None):
