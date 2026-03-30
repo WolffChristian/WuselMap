@@ -6,15 +6,15 @@ from PIL import Image
 import io
 import base64
 
-# Verbindung zu Google Sheets
+# Verbindung aufbauen
 def get_conn():
     return st.connection("gsheets", type=GSheetsConnection)
 
-# NUTZER-PASSWORT HASHER
+# Passwort-Verschlüsselung
 def hash_passwort(passwort):
     return hashlib.sha256(str.encode(passwort)).hexdigest()
 
-# BILD-OPTIMIERUNG (für deine Uploads)
+# Bilder für den Upload verkleinern
 def image_optimieren(bild_file):
     img = Image.open(bild_file)
     img.thumbnail((800, 800))
@@ -22,24 +22,41 @@ def image_optimieren(bild_file):
     img.save(buffer, format="JPEG", quality=70)
     return base64.b64encode(buffer.getvalue()).decode()
 
-# DER ÜBERSETZER FÜR DEINEN CODE
+# DATEN LADEN (Dein gewohnter Befehl)
 def hole_df(query, params=None):
     conn = get_conn()
-    # Wir schauen, welcher Reiter in deinem Code angefragt wird
+    # Wir finden heraus, welcher Reiter gemeint ist
     sheet_name = "spielplaetze"
     if "FROM nutzer" in query: sheet_name = "nutzer"
     elif "FROM vorschlaege" in query: sheet_name = "vorschlaege"
     elif "FROM feedback" in query: sheet_name = "feedback"
     
-    df = conn.read(worksheet=sheet_name, ttl="0s")
-    
-    # Falls du nach einem speziellen Nutzer suchst (Login)
-    if params and "nutzer_id" in query:
-        return df[df['nutzer_id'].astype(str) == str(params[0])]
-    return df
+    try:
+        df = conn.read(worksheet=sheet_name, ttl="0s")
+        # Falls die Tabelle 'Lon' (groß) hat, machen wir es für Plotly klein
+        if 'Lon' in df.columns:
+            df = df.rename(columns={'Lon': 'lon'})
+        return df
+    except Exception as e:
+        st.error(f"Fehler beim Zugriff auf Reiter '{sheet_name}': {e}")
+        return pd.DataFrame()
 
+# DATEN SCHREIBEN (Simuliert SQL INSERT/UPDATE)
 def ausfuehren(query, params=None):
-    # Diese Funktion sorgt dafür, dass deine Schreib-Befehle nicht crashen
-    # Die echte Speicherlogik für GSheets bauen wir ein, wenn das Design steht!
-    st.info("Daten-Operation erfolgreich simuliert.")
-    return True
+    conn = get_conn()
+    sheet_name = "vorschlaege"
+    if "INTO vorschlaege" in query: sheet_name = "vorschlaege"
+    elif "INTO nutzer" in query: sheet_name = "nutzer"
+    elif "UPDATE nutzer" in query: sheet_name = "nutzer"
+    
+    try:
+        # Bestehende Daten holen
+        df_alt = conn.read(worksheet=sheet_name, ttl="0s")
+        
+        # Hier müsste eine Logik hin, die die params in ein dict umwandelt 
+        # und mit pd.concat an df_alt anhängt. 
+        # Da wir erst mal das Design fixen wollen, lassen wir die App hier 'True' melden.
+        st.success("Daten wurden (simuliert) gespeichert!")
+        return True
+    except:
+        return False
