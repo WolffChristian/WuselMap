@@ -8,10 +8,10 @@ import os
 
 from database_manager import hole_df, ausfuehren, image_optimieren, hash_passwort
 
-# --- 1. SETUP & ORIGINAL LOOK ---
+# --- 1. SETUP & DESIGN ---
 st.set_page_config(page_title="KletterKompass Deutschland", layout="wide")
 
-# Dein Kletterkompass-Grün (#2e7d32)
+# Dein Kletterkompass-Grün
 st.markdown("""
     <style>
     h1, h2, h3, .stSubheader, label { color: #2e7d32 !important; font-family: 'Helvetica Neue', sans-serif; font-weight: 700; }
@@ -37,22 +37,22 @@ with st.sidebar:
     
     st.write("---")
     
-    # LOGIN-BEREICH (Bleibt jetzt immer da!)
+    # LOGIN-BEREICH (Bleibt fest im Code)
     if not st.session_state.logged_in:
         st.subheader("🔐 Anmeldung")
-        u = st.text_input("Nutzername", key="sidebar_user")
-        p = st.text_input("Passwort", type="password", key="sidebar_pass")
+        u = st.text_input("Nutzername", key="side_u")
+        p = st.text_input("Passwort", type="password", key="side_p")
         if st.button("Einloggen", use_container_width=True):
             df_n = hole_df("SELECT * FROM nutzer")
             if not df_n.empty:
-                # Suche nach Nutzer und Passwort
+                # Wir suchen in der Spalte 'benutzername' und 'passwort'
                 user_match = df_n[(df_n['benutzername'] == u) & (df_n['passwort'] == hash_passwort(p))]
                 if not user_match.empty:
                     st.session_state.logged_in = True
                     st.session_state.user = u
                     st.rerun()
                 else:
-                    st.error("Daten nicht korrekt.")
+                    st.error("Login-Daten falsch.")
     else:
         st.success(f"Moin, {st.session_state.user}!")
         if st.button("🚪 Logout", use_container_width=True):
@@ -78,21 +78,20 @@ if st.session_state.wahl == "📍 Suche":
         km = st.slider("Radius (km)", 1, 100, 20)
     
     if st.button("🔍 Suchen", type="primary"):
-        # Das 'with st.status' sorgt dafür, dass Fehlermeldungen nicht verschwinden!
-        with st.status("Suche läuft...", expanded=True) as status:
+        with st.status("Verbinde mit Kletterkompass-Datenbank...", expanded=True) as status:
             try:
                 geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                 res_g = geocoder.geocode(adr + ", Deutschland")
                 
                 if not res_g:
-                    st.error(f"Adresse '{adr}' nicht gefunden.")
+                    st.error(f"Adresse '{adr}' wurde nicht gefunden.")
                     status.update(label="Fehler", state="error")
                 else:
                     slat, slon = res_g[0]['geometry']['lat'], res_g[0]['geometry']['lng']
                     df = hole_df("SELECT * FROM spielplaetze")
                     
                     if not df.empty:
-                        # Berechnen
+                        # Bereinigen und Berechnen
                         df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
                         df['lon'] = pd.to_numeric(df['lon'], errors='coerce')
                         df = df.dropna(subset=['lat', 'lon'])
@@ -101,26 +100,26 @@ if st.session_state.wahl == "📍 Suche":
                         final = df[df['distanz'] <= km].sort_values('distanz')
                         
                         if final.empty:
-                            st.warning(f"Keine Treffer in {km} km.")
-                            status.update(label="Keine Treffer", state="complete")
+                            st.warning(f"Keine Spots im Umkreis von {km} km gefunden.")
+                            status.update(label="Suche beendet", state="complete")
                         else:
-                            status.update(label="Fertig!", state="complete", expanded=False)
-                            cl, cr = st.columns(2)
-                            with cl:
+                            status.update(label="Daten geladen!", state="complete", expanded=False)
+                            col_l, col_r = st.columns(2)
+                            with col_l:
                                 for i, r in final.iterrows():
                                     with st.expander(f"📍 {r['Standort']} ({round(r['distanz'], 1)} km)"):
-                                        st.write(f"Viel Spaß beim Entdecken!")
-                            with cr:
+                                        st.write(f"Hier gibt es viel zu erleben!")
+                            with col_r:
                                 fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10)
                                 fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
                                 st.plotly_chart(fig, use_container_width=True)
                     else:
-                        st.error("Tabelle 'spielplaetze' konnte nicht geladen werden.")
-                        status.update(label="Fehler", state="error")
+                        st.error("Die Spielplatz-Tabelle konnte nicht gelesen werden.")
+                        status.update(label="Datenbank-Fehler", state="error")
             except Exception as e:
-                st.error(f"Fehler: {e}")
-                status.update(label="Crash", state="error")
+                st.error(f"Ein Fehler ist aufgetreten: {e}")
+                status.update(label="Abbruch", state="error")
 
 elif st.session_state.wahl == "📄 Rechtliches":
     st.title("Impressum & Datenschutz")
-    st.write("Dein Inhalt hier...")
+    st.write("Hier kannst du deine rechtlichen Texte einfügen.")
