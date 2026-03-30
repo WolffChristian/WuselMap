@@ -2,50 +2,44 @@ import streamlit as st
 import pandas as pd
 from database_manager import hole_daten, neue_zeile_schreiben, hash_passwort
 import uuid
-from datetime import datetime
 
-# 1. Konfiguration & Design
-st.set_page_config(page_title="Kletterkompass", page_icon="🧗", layout="wide")
+# --- 1. SEITEN-EINSTELLUNGEN ---
+st.set_page_config(page_title="Kletterkompass", page_icon="🧗", layout="centered")
 
-# Eigenes CSS für den Look
-st.markdown("""
-    <style>
-    .main { background-color: #f0f2f6; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #2e7d32; color: white; }
-    </style>
-    """, unsafe_allow_html=True)
+# --- 2. BANNER / LOGO ---
+# Falls du ein Bild-Datei hast, hier den Namen einsetzen, sonst Text-Banner
+st.image("https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80", use_column_width=True)
+st.title("🧗 Kletterkompass")
+st.markdown("### Dein Wegweiser zu den besten Spots in Varel & Umgebung")
 
-# 2. Session State (Wer ist eingeloggt?)
+# --- 3. SESSION STATE ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_name = ""
 
-# --- SIDEBAR: LOGIN & REGISTRIERUNG ---
-st.sidebar.title("🧗 Kletterkompass")
+# --- 4. SIDEBAR (Login & Registrierung ohne Dropdown) ---
+st.sidebar.header("Benutzerbereich")
 
 if not st.session_state.logged_in:
-    menu = ["Login", "Registrieren"]
-    choice = st.sidebar.selectbox("Menü", menu)
-
-    if choice == "Login":
-        u = st.sidebar.text_input("Nutzername")
-        p = st.sidebar.text_input("Passwort", type="password")
-        if st.sidebar.button("Einloggen"):
-            df_nutzer = hole_daten("nutzer")
-            if not df_nutzer.empty:
-                user = df_nutzer[(df_nutzer['benutzername'] == u) & (df_nutzer['passwort'] == hash_passwort(p))]
+    with st.sidebar.expander("🔐 Login", expanded=True):
+        u = st.text_input("Nutzername", key="login_u")
+        p = st.text_input("Passwort", type="password", key="login_p")
+        if st.button("Einloggen"):
+            df_n = hole_daten("nutzer")
+            if not df_n.empty:
+                user = df_n[(df_n['benutzername'] == u) & (df_n['passwort'] == hash_passwort(p))]
                 if not user.empty:
                     st.session_state.logged_in = True
                     st.session_state.user_name = u
                     st.rerun()
                 else:
-                    st.sidebar.error("Falsche Daten.")
+                    st.error("Daten falsch.")
 
-    else:
-        new_u = st.sidebar.text_input("Wunsch-Nutzername")
-        new_p = st.sidebar.text_input("Wunsch-Passwort", type="password")
-        new_e = st.sidebar.text_input("E-Mail")
-        if st.sidebar.button("Konto erstellen"):
+    with st.sidebar.expander("📝 Neu hier? Registrieren"):
+        new_u = st.text_input("Wunsch-Nutzername")
+        new_p = st.text_input("Passwort wählen", type="password")
+        new_e = st.text_input("E-Mail Adresse")
+        if st.button("Konto erstellen"):
             neuer_nutzer = {
                 "nutzer_id": str(uuid.uuid4())[:8],
                 "benutzername": new_u,
@@ -55,50 +49,52 @@ if not st.session_state.logged_in:
                 "avatar_emoji": "🧗"
             }
             neue_zeile_schreiben("nutzer", neuer_nutzer)
-            st.sidebar.success("Konto erstellt! Bitte einloggen.")
+            st.success("Konto bereit! Log dich oben ein.")
 else:
-    st.sidebar.success(f"Eingeloggt als: {st.session_state.user_name}")
+    st.sidebar.success(f"Hallo {st.session_state.user_name}!")
     if st.sidebar.button("Abmelden"):
         st.session_state.logged_in = False
         st.rerun()
 
-# --- HAUPTBEREICH ---
-st.title("Finde deinen nächsten Spot")
+# --- 5. SUCHE & KARTE (Das Herzstück) ---
+st.divider()
+suche = st.text_input("🔍 Spielplatz oder Park suchen...", placeholder="z.B. Hafen oder Dangast")
 
-# Karte anzeigen
 try:
-    df_plaetze = hole_daten("spielplaetze")
-    if not df_plaetze.empty:
-        # Wir benennen 'lad' und 'Lohn' intern für Streamlit um
-        map_df = df_plaetze.rename(columns={'lad': 'lat', 'Lohn': 'lon'})
-        st.map(map_df)
-        
-        # Liste anzeigen
-        with st.expander("Alle Standorte anzeigen"):
-            st.table(df_plaetze[['Standort', 'Spiel ID']])
-except:
-    st.info("Noch keine Standorte auf der Karte.")
+    df = hole_daten("spielplaetze")
+    
+    if not df.empty:
+        # Filter-Logik
+        if suche:
+            df_gefiltert = df[df['Standort'].str.contains(suche, case=False, na=False)]
+        else:
+            df_gefiltert = df
 
-# --- NEUEN SPOT VORSCHLAGEN (Nur wenn eingeloggt) ---
+        # Karte (Umbenennung für Streamlit von Lon zu lon)
+        map_df = df_gefiltert.rename(columns={'Lon': 'lon'}) # 'lat' ist ja schon klein bei dir
+        st.map(map_df)
+
+        # Trefferliste
+        st.write(f"Gefundene Spots: {len(df_gefiltert)}")
+        for i, row in df_gefiltert.iterrows():
+            with st.expander(f"📍 {row['Standort']}"):
+                st.write(f"ID: {row['Spiel ID']}")
+                st.button(f"Details zu {row['Standort']}", key=f"btn_{i}")
+    else:
+        st.info("Noch keine Daten in der Google Tabelle.")
+
+except Exception as e:
+    st.error(f"Datenbank-Verbindung wird geprüft... {e}")
+
+# --- 6. VORSCHLÄGE (Nur für eingeloggte User) ---
 if st.session_state.logged_in:
     st.divider()
-    st.subheader("Neuen Spot vorschlagen")
-    with st.form("vorschlag_form"):
-        name = st.text_input("Name des Spielplatzes / Parks")
-        adr = st.text_input("Adresse")
-        beschr = st.text_area("Was ist dort besonders? (Toben, Kraxeln...)")
-        submitted = st.form_submit_button("Vorschlag abschicken")
-        
-        if submitted:
-            neuer_v = {
-                "v_id": str(uuid.uuid4())[:8],
-                "platz_name": name,
-                "adresse": adr,
-                "beschreibung": beschr,
-                "status": "offen"
-            }
-            neue_zeile_schreiben("vorschlaege", neuer_v)
+    st.subheader("💡 Neuen Spot vorschlagen")
+    with st.form("vorschlag"):
+        n_name = st.text_input("Name des Ortes")
+        n_adr = st.text_input("Adresse")
+        if st.form_submit_button("Vorschlag senden"):
+            v_daten = {"v_id": str(uuid.uuid4())[:8], "platz_name": n_name, "adresse": n_adr, "status": "neu"}
+            neue_zeile_schreiben("vorschlaege", v_daten)
             st.balloons()
-            st.success("Danke! Wir prüfen deinen Vorschlag.")
-else:
-    st.info("Logge dich ein, um neue Orte vorzuschlagen und die Community zu unterstützen.")
+            st.success("Gesendet!")
