@@ -5,33 +5,32 @@ from opencage.geocoder import OpenCageGeocode
 import numpy as np
 import requests
 
-# HIER WAR DER FEHLER: Jetzt passen die Namen wieder zusammen!
+# Deine Helfer
 from database_manager import hole_df, ausfuehren, image_optimieren, hash_passwort
 
-# Falls diese Dateien in deinem GitHub sind:
+# Versuche deine Zusatz-Dateien zu laden
 try:
     from auth_manager import login_bereich
     from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
     from legal import show_legal_page
 except:
-    # Fallback für die Entwicklung
-    def login_bereich(): st.sidebar.warning("Login-Modul fehlt auf GitHub")
+    # Falls Dateien auf GitHub fehlen, bauen wir Ersatz-Funktionen
+    def login_bereich(): st.sidebar.write("Login")
     def display_sidebar_logo(): st.sidebar.title("🧗 Kletterkompass")
-    def display_home_banner(): st.image("https://via.placeholder.com/1200x300?text=Kletterkompass+Banner")
+    def display_home_banner(): st.image("banner.jpg")
     def display_page_header(): st.write("---")
-    def show_legal_page(): st.write("Impressum & Datenschutz")
+    def show_legal_page(): st.title("Rechtliches")
 
-# --- DESIGN-RETTUNG (DEIN GRÜN!) ---
+# --- DESIGN: DEIN GRÜN ---
 st.markdown("""
     <style>
-    h1, h2, h3, .stSubheader { color: #2e7d32 !important; font-family: 'Helvetica Neue', sans-serif; }
-    .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; }
+    h1, h2, h3, .stSubheader, label { color: #2e7d32 !important; font-family: 'Arial', sans-serif; }
+    .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; width: 100%; }
+    .stTextInput>div>div>input { border-color: #2e7d32; }
     </style>
     """, unsafe_allow_html=True)
 
-BUNDESLAENDER = ["Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen"]
-AVATAR_OPTIONS = ['👤', '👩‍💻', '👨‍💻', '🧑‍🚀', '🧗‍♀️', '🧗‍♂️', '🦸‍♀️', '🦸‍♂️', '☀️', '⛺']
-
+# Hilfsfunktionen
 def distanz(lat1, lon1, lat2, lon2):
     R = 6371
     dlat, dlon = np.radians(lat2-lat1), np.radians(lon2-lon1)
@@ -44,64 +43,65 @@ def get_weather(lat, lon):
         return requests.get(url, timeout=5).json()['current_weather']
     except: return None
 
+# SETUP
 st.set_page_config(page_title="KletterKompass Deutschland", layout="wide")
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
 
-# Nutzerdaten laden
-nutzer_daten = None
-if st.session_state.logged_in:
-    df_n = hole_df("SELECT * FROM nutzer WHERE nutzer_id=%s", (st.session_state.get('nutzer_id'),))
-    if not df_n.empty: nutzer_daten = df_n.iloc[0]
-
+# SIDEBAR
 with st.sidebar:
     display_sidebar_logo()
-    if nutzer_daten is not None:
-        st.markdown(f"### Moin, {nutzer_daten['avatar_emoji']} {nutzer_daten['vorname']}")
-    
-    if st.button("📍 Spielplatz suchen", use_container_width=True): st.session_state.wahl = "📍 Suche"
-    if st.button("📄 Rechtliches", use_container_width=True): st.session_state.wahl = "📄 Rechtliches"
     st.write("---")
+    if st.button("📍 Spielplatz suchen"): st.session_state.wahl = "📍 Suche"
+    if st.button("📄 Rechtliches"): st.session_state.wahl = "📄 Rechtliches"
     
     if st.session_state.logged_in:
-        if st.button("👤 Mein Profil", use_container_width=True): st.session_state.wahl = "👤 Profil"
-        if st.button("🏗️ Neuen Platz melden", use_container_width=True): st.session_state.wahl = "🏗️ Vorschlag"
-        if st.button("🚪 Logout", use_container_width=True):
+        st.write("---")
+        if st.button("👤 Mein Profil"): st.session_state.wahl = "👤 Profil"
+        if st.button("🏗️ Neuen Platz melden"): st.session_state.wahl = "🏗️ Vorschlag"
+        if st.button("🚪 Logout"):
             st.session_state.clear()
             st.rerun()
-    else: login_bereich()
+    else:
+        st.write("---")
+        login_bereich()
 
-# SEITENLOGIK
+# SEITEN-LOGIK
 if st.session_state.wahl == "📍 Suche":
     display_home_banner()
     st.title("Spielplätze & Parks")
+    
     c1, c2 = st.columns([3, 1])
     with c1: adr = st.text_input("Ort / Adresse", "Varel")
     with c2: km = st.slider("Radius (km)", 1, 100, 20)
     
-    if st.button("🔍 Suchen", type="primary", use_container_width=True):
-        geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-        res_g = geocoder.geocode(adr + ", Deutschland")
-        if res_g:
-            slat, slon = res_g[0]['geometry']['lat'], res_g[0]['geometry']['lng']
-            df = hole_df("SELECT * FROM spielplaetze")
-            if not df.empty:
-                # Wir stellen sicher, dass die Karte 'lat' und 'lon' findet
-                if 'Lon' in df.columns: df = df.rename(columns={'Lon': 'lon'})
+    if st.button("🔍 Suchen", type="primary"):
+        # API Key direkt aus den Secrets
+        try:
+            geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+            res_g = geocoder.geocode(adr + ", Deutschland")
+            if res_g:
+                slat, slon = res_g[0]['geometry']['lat'], res_g[0]['geometry']['lng']
+                df = hole_df("SELECT * FROM spielplaetze")
                 
-                df['distanz'] = df.apply(lambda r: distanz(slat, slon, r['lat'], r['lon']), axis=1)
-                final = df[df['distanz'] <= km].sort_values('distanz')
-                
-                cl, cr = st.columns(2)
-                with cl:
-                    for i, r in final.iterrows():
-                        with st.expander(f"📍 {r['Standort']} ({round(r['distanz'], 1)} km)"):
-                            w = get_weather(r['lat'], r['lon'])
-                            if w: st.info(f"Wetter: {w['temperature']}°C")
-                with cr:
-                    fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10)
-                    fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
-                    st.plotly_chart(fig, use_container_width=True)
+                if not df.empty:
+                    df['distanz'] = df.apply(lambda r: distanz(slat, slon, r['lat'], r['lon']), axis=1)
+                    final = df[df['distanz'] <= km].sort_values('distanz')
+                    
+                    cl, cr = st.columns(2)
+                    with cl:
+                        for i, r in final.iterrows():
+                            with st.expander(f"📍 {r['Standort']} ({round(r['distanz'], 1)} km)"):
+                                w = get_weather(r['lat'], r['lon'])
+                                if w: st.info(f"Wetter: {w['temperature']}°C")
+                    with cr:
+                        fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10)
+                        fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
+                        st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("Keine Spielplätze in der Datenbank gefunden.")
+        except Exception as e:
+            st.error(f"Suche fehlgeschlagen: {e}")
 
 elif st.session_state.wahl == "📄 Rechtliches":
     show_legal_page()
