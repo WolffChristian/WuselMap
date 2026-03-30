@@ -1,12 +1,3 @@
 streamlit
+st-gsheets-connection
 pandas
-requests
-plotly
-geopy
-numpy
-mysql-connector-python
-fastapi
-uvicorn
-python-dotenv
-opencage
-Pillow
