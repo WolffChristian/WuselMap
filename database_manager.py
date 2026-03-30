@@ -10,10 +10,22 @@ import base64
 def get_conn():
     return st.connection("gsheets", type=GSheetsConnection)
 
-# Simuliert SQL-Abfragen für Google Sheets
+# NUTZER-PASSWORT HASHER
+def hash_passwort(passwort):
+    return hashlib.sha256(str.encode(passwort)).hexdigest()
+
+# BILD-OPTIMIERUNG (für deine Uploads)
+def image_optimieren(bild_file):
+    img = Image.open(bild_file)
+    img.thumbnail((800, 800))
+    buffer = io.BytesIO()
+    img.save(buffer, format="JPEG", quality=70)
+    return base64.b64encode(buffer.getvalue()).decode()
+
+# DER ÜBERSETZER FÜR DEINEN CODE
 def hole_df(query, params=None):
     conn = get_conn()
-    # Wir finden heraus, welcher Reiter gemeint ist (nutzer, spielplaetze, etc.)
+    # Wir schauen, welcher Reiter in deinem Code angefragt wird
     sheet_name = "spielplaetze"
     if "FROM nutzer" in query: sheet_name = "nutzer"
     elif "FROM vorschlaege" in query: sheet_name = "vorschlaege"
@@ -21,30 +33,13 @@ def hole_df(query, params=None):
     
     df = conn.read(worksheet=sheet_name, ttl="0s")
     
-    # Einfache Filter-Simulation für den Login
+    # Falls du nach einem speziellen Nutzer suchst (Login)
     if params and "nutzer_id" in query:
-        return df[df['nutzer_id'] == str(params[0])]
+        return df[df['nutzer_id'].astype(str) == str(params[0])]
     return df
 
-# Simuliert Schreibbefehle
 def ausfuehren(query, params=None):
-    conn = get_conn()
-    sheet_name = "vorschlaege"
-    if "INTO vorschlaege" in query: sheet_name = "vorschlaege"
-    elif "INTO nutzer" in query: sheet_name = "nutzer"
-    elif "UPDATE nutzer" in query: sheet_name = "nutzer"
-    elif "DELETE FROM vorschlaege" in query: sheet_name = "vorschlaege"
-    
-    # Hier müsste eine Logik zum Speichern hin (wie vorher besprochen)
-    # Für den Moment geben wir True zurück, damit die App nicht crashed
+    # Diese Funktion sorgt dafür, dass deine Schreib-Befehle nicht crashen
+    # Die echte Speicherlogik für GSheets bauen wir ein, wenn das Design steht!
+    st.info("Daten-Operation erfolgreich simuliert.")
     return True
-
-def hash_passwort(passwort):
-    return hashlib.sha256(str.encode(passwort)).hexdigest()
-
-def image_optimieren(bild_file):
-    img = Image.open(bild_file)
-    img.thumbnail((800, 800))
-    buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=70)
-    return base64.b64encode(buffer.getvalue()).decode()
