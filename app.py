@@ -1,177 +1,107 @@
 import streamlit as st
 import pandas as pd
-from database_manager import hole_daten, neue_zeile_schreiben, hash_passwort
-import uuid
-from datetime import datetime
+import plotly.express as px
+from opencage.geocoder import OpenCageGeocode
+import numpy as np
+import requests
 
-# --- 1. SEITEN-KONFIGURATION ---
-st.set_page_config(
-    page_title="Kletterkompass - Dein Spot-Finder",
-    page_icon="🧗",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# HIER WAR DER FEHLER: Jetzt passen die Namen wieder zusammen!
+from database_manager import hole_df, ausfuehren, image_optimieren, hash_passwort
 
-# --- 2. DEIN ORIGINAL DESIGN (CSS) ---
-# Hier holen wir die grüne Schrift und das Styling zurück!
+# Falls diese Dateien in deinem GitHub sind:
+try:
+    from auth_manager import login_bereich
+    from assets_helper import display_sidebar_logo, display_home_banner, display_page_header
+    from legal import show_legal_page
+except:
+    # Fallback für die Entwicklung
+    def login_bereich(): st.sidebar.warning("Login-Modul fehlt auf GitHub")
+    def display_sidebar_logo(): st.sidebar.title("🧗 Kletterkompass")
+    def display_home_banner(): st.image("https://via.placeholder.com/1200x300?text=Kletterkompass+Banner")
+    def display_page_header(): st.write("---")
+    def show_legal_page(): st.write("Impressum & Datenschutz")
+
+# --- DESIGN-RETTUNG (DEIN GRÜN!) ---
 st.markdown("""
     <style>
-    /* Haupt-Schriftart und Hintergrund */
-    .main {
-        background-color: #f9f9f9;
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    }
-    
-    /* Die GRÜNE SCHRIFT für Titel */
-    h1, h2, h3, .stSubheader {
-        color: #2e7d32 !important; /* Dein Kletterkompass-Grün */
-        font-weight: 700;
-    }
-    
-    /* Sidebar Styling */
-    .css-1d391kg {
-        background-color: #ffffff;
-        border-right: 1px solid #eeeeee;
-    }
-    
-    /* Buttons */
-    .stButton>button {
-        background-color: #2e7d32;
-        color: white;
-        border-radius: 8px;
-        border: none;
-        padding: 10px 20px;
-        transition: all 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #1b5e20;
-        transform: translateY(-2px);
-    }
-    
-    /* Karten-Container */
-    .stMap {
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
+    h1, h2, h3, .stSubheader { color: #2e7d32 !important; font-family: 'Helvetica Neue', sans-serif; }
+    .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SESSION STATE ---
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.user_name = ""
+BUNDESLAENDER = ["Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen"]
+AVATAR_OPTIONS = ['👤', '👩‍💻', '👨‍💻', '🧑‍🚀', '🧗‍♀️', '🧗‍♂️', '🦸‍♀️', '🦸‍♂️', '☀️', '⛺']
 
-# --- 4. SIDEBAR (Original Anordnung) ---
-# Hier laden wir DEINE BILDER aus GitHub!
-st.sidebar.image("logo.png", width=150) # <-- Stell sicher, dass die Datei so heißt!
-st.sidebar.title("🧗 Kletterkompass")
+def distanz(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat, dlon = np.radians(lat2-lat1), np.radians(lon2-lon1)
+    a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
+    return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
-if not st.session_state.logged_in:
-    st.sidebar.subheader("Login / Registrierung")
-    login_tab, reg_tab = st.sidebar.tabs(["🔐 Login", "📝 Registrieren"])
-    
-    with login_tab:
-        u = st.text_input("Nutzername", key="login_u")
-        p = st.text_input("Passwort", type="password", key="login_p")
-        if st.button("Einloggen"):
-            df_n = hole_daten("nutzer")
-            if not df_n.empty:
-                user = df_n[(df_n['benutzername'] == u) & (df_n['passwort'] == hash_passwort(p))]
-                if not user.empty:
-                    st.session_state.logged_in = True
-                    st.session_state.user_name = u
-                    st.rerun()
-                else:
-                    st.error("Daten falsch.")
-                    
-    with reg_tab:
-        new_u = st.text_input("Wunsch-Nutzername")
-        new_p = st.text_input("Passwort", type="password")
-        new_e = st.text_input("E-Mail")
-        if st.button("Konto erstellen"):
-            neuer_nutzer = {
-                "nutzer_id": str(uuid.uuid4())[:8],
-                "benutzername": new_u,
-                "passwort": hash_passwort(new_p),
-                "email": new_e,
-                "rolle": "user",
-                "avatar_emoji": "🧗"
-            }
-            neue_zeile_schreiben("nutzer", neuer_nutzer)
-            st.success("Konto erstellt! Bitte einloggen.")
-else:
-    st.sidebar.success(f"Eingeloggt als: {st.session_state.user_name}")
-    if st.sidebar.button("Abmelden"):
-        st.session_state.logged_in = False
-        st.rerun()
+def get_weather(lat, lon):
+    try:
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+        return requests.get(url, timeout=5).json()['current_weather']
+    except: return None
 
-# --- 5. HAUPTBEREICH (Original Anordnung) ---
+st.set_page_config(page_title="KletterKompass Deutschland", layout="wide")
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
 
-# DEIN BANNER-BILD
-st.image("banner.jpg", use_column_width=True) # <-- Stell sicher, dass die Datei so heißt!
-
-st.title("Finde deinen nächsten Spot")
-st.markdown("Dein Wegweiser zu den besten Kletter- und Spielplätzen in Varel & Umgebung.")
-
-# DIE SUCHE (Original Position)
-st.divider()
-col1, col2 = st.columns([3, 1])
-with col1:
-    suche = st.text_input("🔍 Spot suchen...", placeholder="z.B. Hafen oder Dangast")
-
-# DIE KARTE & DATEN LADEN
-try:
-    df = hole_daten("spielplaetze")
-    
-    if not df.empty:
-        # Filter-Logik
-        if suche:
-            # Wir suchen im Spaltennamen 'Standort'
-            df_gefiltert = df[df['Standort'].str.contains(suche, case=False, na=False)]
-        else:
-            df_gefiltert = df
-
-        # Karte (Umbenennung für Streamlit von Lon zu lon)
-        map_df = df_gefiltert.rename(columns={'Lon': 'lon'}) 
-        st.map(map_df)
-
-        # Trefferliste (Original Design)
-        st.subheader(f"Gefundene Spots ({len(df_gefiltert)})")
-        for i, row in df_gefiltert.iterrows():
-            with st.container():
-                c1, c2, c3 = st.columns([1, 2, 1])
-                # Platzhalter für Spot-Bild (Funktion kommt später)
-                c1.image("https://via.placeholder.com/150", width=100) 
-                c2.markdown(f"### {row['Standort']}")
-                c2.write(f"ID: {row['Spiel ID']}")
-                if c3.button("Details", key=f"details_{i}"):
-                    st.info(f"Details für {row['Standort']} folgen...")
-                st.divider()
-    else:
-        st.info("Noch keine Daten in der Google Tabelle.")
-
-except Exception as e:
-    st.error(f"Datenbank-Verbindung wird geprüft... {e}")
-
-# --- 6. VORSCHLÄGE & PITCH (Ganz unten, Original Design) ---
+# Nutzerdaten laden
+nutzer_daten = None
 if st.session_state.logged_in:
-    st.divider()
-    st.subheader("💡 Neuen Spot vorschlagen")
-    # ... (Original Formular)
-    with st.form("vorschlag"):
-        n_name = st.text_input("Name des Ortes")
-        n_adr = st.text_input("Adresse")
-        if st.form_submit_button("Vorschlag senden"):
-            v_daten = {"v_id": str(uuid.uuid4())[:8], "platz_name": n_name, "adresse": n_adr, "status": "neu"}
-            neue_zeile_schreiben("vorschlaege", v_daten)
-            st.balloons()
-            st.success("Gesendet!")
+    df_n = hole_df("SELECT * FROM nutzer WHERE nutzer_id=%s", (st.session_state.get('nutzer_id'),))
+    if not df_n.empty: nutzer_daten = df_n.iloc[0]
 
-# DEIN PITCH-TEXT (Original Position)
-st.divider()
-st.markdown("""
-    ### Warum Kletterkompass?
-    *Von Eltern für Eltern.* Wir kennen die Suche nach dem perfekten Spot. 
-    Kletterkompass hilft dir, schnell und einfach tolle Orte für deine Kinder zu finden, 
-    damit ihr mehr Zeit beim Toben und weniger Zeit beim Suchen verbringt.
-""")
+with st.sidebar:
+    display_sidebar_logo()
+    if nutzer_daten is not None:
+        st.markdown(f"### Moin, {nutzer_daten['avatar_emoji']} {nutzer_daten['vorname']}")
+    
+    if st.button("📍 Spielplatz suchen", use_container_width=True): st.session_state.wahl = "📍 Suche"
+    if st.button("📄 Rechtliches", use_container_width=True): st.session_state.wahl = "📄 Rechtliches"
+    st.write("---")
+    
+    if st.session_state.logged_in:
+        if st.button("👤 Mein Profil", use_container_width=True): st.session_state.wahl = "👤 Profil"
+        if st.button("🏗️ Neuen Platz melden", use_container_width=True): st.session_state.wahl = "🏗️ Vorschlag"
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
+    else: login_bereich()
+
+# SEITENLOGIK
+if st.session_state.wahl == "📍 Suche":
+    display_home_banner()
+    st.title("Spielplätze & Parks")
+    c1, c2 = st.columns([3, 1])
+    with c1: adr = st.text_input("Ort / Adresse", "Varel")
+    with c2: km = st.slider("Radius (km)", 1, 100, 20)
+    
+    if st.button("🔍 Suchen", type="primary", use_container_width=True):
+        geocoder = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+        res_g = geocoder.geocode(adr + ", Deutschland")
+        if res_g:
+            slat, slon = res_g[0]['geometry']['lat'], res_g[0]['geometry']['lng']
+            df = hole_df("SELECT * FROM spielplaetze")
+            if not df.empty:
+                # Wir stellen sicher, dass die Karte 'lat' und 'lon' findet
+                if 'Lon' in df.columns: df = df.rename(columns={'Lon': 'lon'})
+                
+                df['distanz'] = df.apply(lambda r: distanz(slat, slon, r['lat'], r['lon']), axis=1)
+                final = df[df['distanz'] <= km].sort_values('distanz')
+                
+                cl, cr = st.columns(2)
+                with cl:
+                    for i, r in final.iterrows():
+                        with st.expander(f"📍 {r['Standort']} ({round(r['distanz'], 1)} km)"):
+                            w = get_weather(r['lat'], r['lon'])
+                            if w: st.info(f"Wetter: {w['temperature']}°C")
+                with cr:
+                    fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10)
+                    fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
+                    st.plotly_chart(fig, use_container_width=True)
+
+elif st.session_state.wahl == "📄 Rechtliches":
+    show_legal_page()
