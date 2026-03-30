@@ -70,7 +70,9 @@ with st.sidebar:
 if st.session_state.wahl == "📍 Suche":
     display_home_banner()
     st.title("Spielplätze & Parks")
-    
+    # TEST-ZEILE: Lösche sie wieder, wenn es klappt!
+conn = st.connection("gsheets", type=st.connection.GSheetsConnection)
+st.write("Verfügbare Reiter:", conn.read(ttl=0).columns.tolist() if not conn.read(ttl=0).empty else "Keine gefunden")
     c1, c2 = st.columns([3, 1])
     with c1: adr = st.text_input("Ort / Adresse", "Varel")
     with c2: km = st.slider("Radius (km)", 1, 100, 20)
