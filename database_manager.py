@@ -22,10 +22,9 @@ def image_optimieren(bild_file):
     img.save(buffer, format="JPEG", quality=70)
     return base64.b64encode(buffer.getvalue()).decode()
 
-# DATEN LADEN (Dein gewohnter Befehl)
+# DATEN LADEN
 def hole_df(query, params=None):
     conn = get_conn()
-    # Wir finden heraus, welcher Reiter gemeint ist
     sheet_name = "spielplaetze"
     if "FROM nutzer" in query: sheet_name = "nutzer"
     elif "FROM vorschlaege" in query: sheet_name = "vorschlaege"
@@ -38,25 +37,11 @@ def hole_df(query, params=None):
             df = df.rename(columns={'Lon': 'lon'})
         return df
     except Exception as e:
-        st.error(f"Fehler beim Zugriff auf Reiter '{sheet_name}': {e}")
+        st.error(f"Fehler beim Zugriff auf Google Sheets: {e}")
         return pd.DataFrame()
 
 # DATEN SCHREIBEN (Simuliert SQL INSERT/UPDATE)
 def ausfuehren(query, params=None):
-    conn = get_conn()
-    sheet_name = "vorschlaege"
-    if "INTO vorschlaege" in query: sheet_name = "vorschlaege"
-    elif "INTO nutzer" in query: sheet_name = "nutzer"
-    elif "UPDATE nutzer" in query: sheet_name = "nutzer"
-    
-    try:
-        # Bestehende Daten holen
-        df_alt = conn.read(worksheet=sheet_name, ttl="0s")
-        
-        # Hier müsste eine Logik hin, die die params in ein dict umwandelt 
-        # und mit pd.concat an df_alt anhängt. 
-        # Da wir erst mal das Design fixen wollen, lassen wir die App hier 'True' melden.
-        st.success("Daten wurden (simuliert) gespeichert!")
-        return True
-    except:
-        return False
+    # Die echte Speicherlogik für GSheets kommt, sobald die Karte läuft
+    st.info("Daten-Operation wird verarbeitet...")
+    return True
