@@ -4,6 +4,7 @@ import pandas as pd
 import hashlib
 
 def get_db_connection():
+    """Verbindung zur TiDB Cloud."""
     try:
         return mysql.connector.connect(
             host=st.secrets["DB_HOST"],
@@ -14,47 +15,51 @@ def get_db_connection():
             ssl_verify_cert=True
         )
     except Exception as e:
-        st.error(f"Datenbank-Fehler: {e}")
+        st.error(f"Datenbank-Verbindung fehlgeschlagen: {e}")
         return None
 
 def hash_passwort(passwort):
-    return hashlib.sha256(str.encode(passwort)).hexdigest()
+    """Verschlüsselt Passwörter sicher per SHA-256."""
+    return hashlib.sha256(str.encode(passwort.strip())).hexdigest()
 
 def hole_df(tabelle="spielplaetze"):
+    """Lädt Daten aus der Datenbank in ein DataFrame."""
     conn = get_db_connection()
     if conn is None: return pd.DataFrame()
     try:
         df = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
         if not df.empty:
             df.columns = [c.lower() for c in df.columns]
-            if 'standort' in df.columns: df = df.rename(columns={'standort': 'Standort'})
+            if 'standort' in df.columns:
+                df = df.rename(columns={'standort': 'Standort'})
         return df
     finally:
         conn.close()
 
 def registriere_nutzer(username, pw, email, vorname, nachname, alter, agb):
+    """Speichert neuen Nutzer mit Standard-Emoji."""
     conn = get_db_connection()
     if conn is None: return False
     cursor = conn.cursor()
     sql = """INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle, profil_emoji) 
              VALUES (%s, %s, %s, %s, %s, %s, %s, 'user', '🧗')"""
     try:
-        cursor.execute(sql, (username, hash_passwort(pw), email, vorname, nachname, alter, agb))
+        cursor.execute(sql, (username.strip(), hash_passwort(pw), email.strip(), vorname, nachname, alter, agb))
         conn.commit()
         return True
     except: return False
     finally:
         cursor.close(); conn.close()
 
-# --- NEU: PROFIL AKTUALISIEREN ---
 def aktualisiere_profil(username, email, vorname, nachname, alter, emoji):
+    """Speichert Profiländerungen."""
     conn = get_db_connection()
     if conn is None: return False
     cursor = conn.cursor()
     sql = """UPDATE nutzer SET email=%s, vorname=%s, nachname=%s, alter_jahre=%s, profil_emoji=%s 
              WHERE benutzername=%s"""
     try:
-        cursor.execute(sql, (email, vorname, nachname, alter, emoji, username))
+        cursor.execute(sql, (email.strip(), vorname, nachname, alter, emoji, username))
         conn.commit()
         return True
     except: return False
@@ -62,6 +67,7 @@ def aktualisiere_profil(username, email, vorname, nachname, alter, emoji):
         cursor.close(); conn.close()
 
 def speichere_spielplatz(name, lat, lon, alter):
+    """Admin-Funktion: Neuen Spot anlegen."""
     conn = get_db_connection()
     if conn is None: return False
     cursor = conn.cursor()
@@ -74,6 +80,7 @@ def speichere_spielplatz(name, lat, lon, alter):
         cursor.close(); conn.close()
 
 def sende_vorschlag(name, adr, alter, user):
+    """Nutzer-Funktion: Neuen Spielplatz vorschlagen."""
     conn = get_db_connection()
     cursor = conn.cursor()
     sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von) VALUES (%s, %s, %s, %s)"
@@ -82,6 +89,7 @@ def sende_vorschlag(name, adr, alter, user):
     conn.close()
 
 def sende_feedback(user, msg):
+    """Nutzer-Feedback speichern."""
     conn = get_db_connection()
     cursor = conn.cursor()
     sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
@@ -90,18 +98,20 @@ def sende_feedback(user, msg):
     conn.close()
 
 def check_user_mail_match(u, m):
+    """Passwort-Vergessen: Validierung."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM nutzer WHERE benutzername = %s AND email = %s", (u, m))
+    cursor.execute("SELECT id FROM nutzer WHERE benutzername = %s AND email = %s", (u.strip(), m.strip()))
     res = cursor.fetchone()
     conn.close()
     return res is not None
 
 def update_passwort(u, neu_pw):
+    """Passwort-Reset."""
     conn = get_db_connection()
     cursor = conn.cursor()
     sql = "UPDATE nutzer SET passwort = %s WHERE benutzername = %s"
-    cursor.execute(sql, (hash_passwort(neu_pw), u))
+    cursor.execute(sql, (hash_passwort(neu_pw), u.strip()))
     conn.commit()
     conn.close()
     return True
