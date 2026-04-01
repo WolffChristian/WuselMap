@@ -14,7 +14,7 @@ def get_db_connection():
             ssl_verify_cert=True
         )
     except Exception as e:
-        st.error(f"Datenbank-Verbindung fehlgeschlagen: {e}")
+        st.error(f"Datenbank-Fehler: {e}")
         return None
 
 def hash_passwort(passwort):
@@ -44,7 +44,7 @@ def registriere_nutzer(username, pw, email, vorname, nachname, alter, agb):
         conn.commit()
         return True
     except Exception as e:
-        st.error(f"Registrierungsfehler: {e}")
+        st.error(f"Fehler: {e}")
         return False
     finally:
         cursor.close()
@@ -59,9 +59,6 @@ def speichere_spielplatz(name, lat, lon, alter):
         cursor.execute(sql, (name, lat, lon, alter))
         conn.commit()
         return True
-    except Exception as e:
-        st.error(f"Speicherfehler: {e}")
-        return False
     finally:
         cursor.close()
         conn.close()
