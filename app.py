@@ -14,7 +14,7 @@ st.markdown("""
     h1, h2, h3, label { color: #2e7d32 !important; font-family: 'Helvetica Neue', sans-serif; }
     .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; font-weight: bold; width: 100%; border: none; }
     .stButton>button:hover { background-color: #1b5e20; }
-    .stTextInput>div>div>input, .stNumberInput>div>div>input, .stTextArea>div>textarea { 
+    .stTextInput>div>div>input, .stNumberInput>div>div>input { 
         background-color: #ffffff !important; border: 2px solid #2e7d32 !important; color: #000000 !important; 
     }
     [data-testid="stSidebar"] { background-color: #000000 !important; }
@@ -22,6 +22,8 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] { background-color: transparent; }
     .stTabs [data-baseweb="tab"] { background-color: #1a1a1a; color: white; border-radius: 5px; margin-right: 5px; }
     .stTabs [aria-selected="true"] { background-color: #2e7d32 !important; }
+    /* Profilbild-Zentrierung */
+    .avatar-circle { font-size: 80px; text-align: center; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -31,7 +33,6 @@ def distanz(lat1, lon1, lat2, lon2):
     a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
-# States
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'user_role' not in st.session_state: st.session_state.user_role = 'guest'
 if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
@@ -45,7 +46,6 @@ with st.sidebar:
     
     if not st.session_state.logged_in:
         t_log, t_reg = st.tabs(["🔐 Login", "📝 Registrieren"])
-        
         with t_log:
             if not st.session_state.forgot_pw:
                 u = st.text_input("Nutzername", key="l_u")
@@ -59,44 +59,28 @@ with st.sidebar:
                             st.session_state.user_role = user_match.iloc[0]['rolle']
                             st.rerun()
                         else: st.error("Login falsch.")
-                
                 if st.button("🔑 Passwort vergessen?"):
-                    st.session_state.forgot_pw = True
-                    st.rerun()
+                    st.session_state.forgot_pw = True; st.rerun()
             else:
-                st.subheader("Passwort zurücksetzen")
-                res_u = st.text_input("Dein Nutzername")
-                res_m = st.text_input("Deine E-Mail")
+                res_u, res_m = st.text_input("Nutzername"), st.text_input("E-Mail")
                 neu_pw = st.text_input("Neues Passwort", type="password")
-                if st.button("Passwort jetzt ändern"):
-                    if check_user_mail_match(res_u, res_m):
-                        if update_passwort(res_u, neu_pw):
-                            st.success("Erfolg! Melde dich jetzt an.")
-                            st.session_state.forgot_pw = False
-                        else: st.error("Fehler beim Speichern.")
-                    else: st.error("Daten stimmen nicht überein.")
-                if st.button("Zurück zum Login"):
-                    st.session_state.forgot_pw = False
-                    st.rerun()
-        
+                if st.button("Passwort ändern"):
+                    if check_user_mail_match(res_u, res_m) and update_passwort(res_u, neu_pw):
+                        st.success("Erledigt!"); st.session_state.forgot_pw = False; st.rerun()
+                    else: st.error("Daten falsch.")
+                if st.button("Zurück"): st.session_state.forgot_pw = False; st.rerun()
         with t_reg:
-            nu = st.text_input("Nutzername*", key="r_u")
-            npw = st.text_input("Passwort*", type="password", key="r_p")
-            ne = st.text_input("E-Mail*", key="r_e")
-            nv, nn = st.text_input("Vorname"), st.text_input("Nachname")
-            na = st.number_input("Alter", 0, 100, 25)
+            nu, npw, ne = st.text_input("Nutzer*"), st.text_input("PW*", type="password"), st.text_input("Mail*")
+            nv, nn, na = st.text_input("Vorname"), st.text_input("Nachname"), st.number_input("Alter", 0, 100, 25)
             agb = st.checkbox("AGB akzeptieren*")
             if st.button("Erstellen"):
                 if nu and npw and ne and agb:
                     if registriere_nutzer(nu, npw, ne, nv, nn, na, agb): st.success("Konto bereit!")
                     else: st.error("Fehler.")
-                else: st.warning("Check Pflichtfelder + AGB!")
     else:
         st.success(f"Moin {st.session_state.user}!")
-        if st.button("Logout"): 
-            st.session_state.logged_in = False
-            st.session_state.user_role = 'guest'
-            st.rerun()
+        if st.button("👤 Mein Profil"): st.session_state.wahl = "👤 Profil"
+        if st.button("🚪 Logout"): st.session_state.logged_in = False; st.rerun()
 
     st.write("---")
     if st.button("📍 Spielplatz suchen"): st.session_state.wahl = "📍 Suche"
@@ -104,8 +88,34 @@ with st.sidebar:
         if st.button("🛠️ Admin-Bereich"): st.session_state.wahl = "🛠️ Admin"
     if st.button("📄 Rechtliches"): st.session_state.wahl = "📄 Recht"
 
+# --- HAUPTBEREICH: PROFIL ---
+if st.session_state.wahl == "👤 Profil":
+    st.title("Dein Profil")
+    df_u = hole_df("nutzer")
+    user_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
+    
+    col_p1, col_p2 = st.columns([1, 2])
+    with col_p1:
+        st.markdown(f'<div class="avatar-circle">{user_data.get("profil_emoji", "🧗")}</div>', unsafe_allow_html=True)
+        st.subheader("Profilbild wählen")
+        neues_emoji = st.selectbox("Wähle dein Emoji", ["🧗", "🏃", "🧗‍♂️", "⛰️", "🤸", "🏀", "⚽", "🌟", "🦁", "🚀"])
+    
+    with col_p2:
+        with st.form("edit_profil"):
+            st.subheader("Persönliche Daten")
+            e_mail = st.text_input("E-Mail", value=user_data['email'])
+            v_name = st.text_input("Vorname", value=user_data['vorname'])
+            n_name = st.text_input("Nachname", value=user_data['nachname'])
+            alter = st.number_input("Alter", value=int(user_data['alter_jahre']))
+            
+            if st.form_submit_button("Änderungen speichern"):
+                if aktualisiere_profil(st.session_state.user, e_mail, v_name, n_name, alter, neues_emoji):
+                    st.success("✅ Profil aktualisiert!")
+                    st.rerun()
+                else: st.error("Fehler beim Speichern.")
+
 # --- HAUPTBEREICH: SUCHE ---
-if st.session_state.wahl == "📍 Suche":
+elif st.session_state.wahl == "📍 Suche":
     banner_path = "assets/Kletterkompass.png"
     if os.path.exists(banner_path): st.image(banner_path, use_container_width=True)
     st.title("Spielplätze finden")
@@ -137,33 +147,13 @@ if st.session_state.wahl == "📍 Suche":
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
                         st.plotly_chart(fig, use_container_width=True)
 
-    if st.session_state.logged_in:
-        st.write("---")
-        c_f1, c_f2 = st.columns(2)
-        with c_f1:
-            with st.expander("💡 Neuen Spielplatz vorschlagen"):
-                with st.form("vorschlag"):
-                    v_n, v_a = st.text_input("Name"), st.text_input("Adresse")
-                    v_alt = st.selectbox("Alter", ["0-3", "3-12", "Alle"])
-                    if st.form_submit_button("Senden"):
-                        sende_vorschlag(v_n, v_a, v_alt, st.session_state.user)
-                        st.success("Danke!")
-        with c_f2:
-            with st.expander("💬 Feedback zur App"):
-                with st.form("feedback"):
-                    msg = st.text_area("Deine Nachricht")
-                    if st.form_submit_button("Senden"):
-                        sende_feedback(st.session_state.user, msg)
-                        st.success("Gesendet!")
-
-# --- ADMIN BEREICH ---
+# --- ADMIN BEREICH & RECHT ---
 elif st.session_state.wahl == "🛠️ Admin":
     st.title("Admin-Cockpit")
     t1, t2, t3, t4 = st.tabs(["📥 Vorschläge", "👥 Nutzer", "💬 Feedback", "🏗️ Neu anlegen"])
     with t1:
         df_v = hole_df("vorschlaege")
         if not df_v.empty: st.table(df_v)
-        else: st.write("Leer.")
     with t2:
         df_u = hole_df("nutzer")
         if not df_u.empty: st.dataframe(df_u[['id', 'benutzername', 'email', 'vorname', 'nachname', 'rolle']])
