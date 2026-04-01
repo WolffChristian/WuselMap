@@ -4,7 +4,6 @@ import pandas as pd
 import hashlib
 
 def get_db_connection():
-    """Stellt die Verbindung zu TiDB Cloud her."""
     try:
         return mysql.connector.connect(
             host=st.secrets["DB_HOST"],
@@ -19,11 +18,9 @@ def get_db_connection():
         return None
 
 def hash_passwort(passwort):
-    """Verschlüsselt Passwörter sicher per SHA-256."""
     return hashlib.sha256(str.encode(passwort)).hexdigest()
 
 def hole_df(tabelle="spielplaetze"):
-    """Lädt Daten aus der MySQL-Datenbank."""
     conn = get_db_connection()
     if conn is None: return pd.DataFrame()
     try:
@@ -37,12 +34,11 @@ def hole_df(tabelle="spielplaetze"):
         conn.close()
 
 def registriere_nutzer(username, pw, email, vorname, nachname, alter, agb):
-    """Speichert einen neuen Nutzer inkl. AGB-Status."""
     conn = get_db_connection()
     if conn is None: return False
     cursor = conn.cursor()
-    sql = """INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert) 
-             VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+    sql = """INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) 
+             VALUES (%s, %s, %s, %s, %s, %s, %s, 'user')"""
     try:
         cursor.execute(sql, (username, hash_passwort(pw), email, vorname, nachname, alter, agb))
         conn.commit()
@@ -55,7 +51,6 @@ def registriere_nutzer(username, pw, email, vorname, nachname, alter, agb):
         conn.close()
 
 def speichere_spielplatz(name, lat, lon, alter):
-    """Speichert einen neuen Spot in der Datenbank."""
     conn = get_db_connection()
     if conn is None: return False
     cursor = conn.cursor()
