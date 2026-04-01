@@ -73,3 +73,25 @@ def sende_feedback(user, msg):
     cursor.execute(sql, (user, msg))
     conn.commit()
     conn.close()
+
+# --- NEU: PASSWORT VERGESSEN FUNKTIONEN ---
+def check_user_mail_match(u, m):
+    """Prüft ob Nutzername und E-Mail in der DB zusammengehören."""
+    conn = get_db_connection()
+    if conn is None: return False
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM nutzer WHERE benutzername = %s AND email = %s", (u, m))
+    res = cursor.fetchone()
+    conn.close()
+    return res is not None
+
+def update_passwort(u, neu_pw):
+    """Speichert das neue gehashte Passwort."""
+    conn = get_db_connection()
+    if conn is None: return False
+    cursor = conn.cursor()
+    sql = "UPDATE nutzer SET passwort = %s WHERE benutzername = %s"
+    cursor.execute(sql, (hash_passwort(neu_pw), u))
+    conn.commit()
+    conn.close()
+    return True
