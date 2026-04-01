@@ -36,10 +36,25 @@ def registriere_nutzer(username, pw, email, vorname, nachname, alter, agb):
     conn = get_db_connection()
     if conn is None: return False
     cursor = conn.cursor()
-    sql = """INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) 
-             VALUES (%s, %s, %s, %s, %s, %s, %s, 'user')"""
+    sql = """INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle, profil_emoji) 
+             VALUES (%s, %s, %s, %s, %s, %s, %s, 'user', '🧗')"""
     try:
         cursor.execute(sql, (username, hash_passwort(pw), email, vorname, nachname, alter, agb))
+        conn.commit()
+        return True
+    except: return False
+    finally:
+        cursor.close(); conn.close()
+
+# --- NEU: PROFIL AKTUALISIEREN ---
+def aktualisiere_profil(username, email, vorname, nachname, alter, emoji):
+    conn = get_db_connection()
+    if conn is None: return False
+    cursor = conn.cursor()
+    sql = """UPDATE nutzer SET email=%s, vorname=%s, nachname=%s, alter_jahre=%s, profil_emoji=%s 
+             WHERE benutzername=%s"""
+    try:
+        cursor.execute(sql, (email, vorname, nachname, alter, emoji, username))
         conn.commit()
         return True
     except: return False
@@ -74,11 +89,8 @@ def sende_feedback(user, msg):
     conn.commit()
     conn.close()
 
-# --- NEU: PASSWORT VERGESSEN FUNKTIONEN ---
 def check_user_mail_match(u, m):
-    """Prüft ob Nutzername und E-Mail in der DB zusammengehören."""
     conn = get_db_connection()
-    if conn is None: return False
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM nutzer WHERE benutzername = %s AND email = %s", (u, m))
     res = cursor.fetchone()
@@ -86,9 +98,7 @@ def check_user_mail_match(u, m):
     return res is not None
 
 def update_passwort(u, neu_pw):
-    """Speichert das neue gehashte Passwort."""
     conn = get_db_connection()
-    if conn is None: return False
     cursor = conn.cursor()
     sql = "UPDATE nutzer SET passwort = %s WHERE benutzername = %s"
     cursor.execute(sql, (hash_passwort(neu_pw), u))
