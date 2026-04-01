@@ -1,10 +1,9 @@
 streamlit
+mysql-connector-python
 pandas
-plotly
-opencage
-numpy
-requests
-st-gsheets-connection
+pandas-geojson
+folium
+streamlit-folium
+opencv-python-headless
 Pillow
-supabase
-postgrest
+opencage
