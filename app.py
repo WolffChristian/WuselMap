@@ -9,14 +9,37 @@ from database_manager import hole_df, speichere_spielplatz, registriere_nutzer, 
 # --- SETUP & DESIGN ---
 st.set_page_config(page_title="KletterKompass Deutschland", layout="wide")
 
-# Das grüne Theme und die Sichtbarkeit der Felder
+# CSS für das dunkle Design mit grünen Akzenten
 st.markdown("""
     <style>
+    /* Hauptfarben */
     h1, h2, h3, label { color: #2e7d32 !important; font-family: 'Helvetica Neue', sans-serif; }
-    .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; border: none; font-weight: bold; }
-    .stButton>button:hover { background-color: #1b5e20; }
-    .stTextInput>div>div>input { background-color: #ffffff !important; border: 2px solid #2e7d32 !important; color: #000000 !important; }
-    [data-testid="stSidebar"] { background-color: #f1f8e9; }
+    
+    /* Buttons */
+    .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }
+    .stButton>button:hover { background-color: #1b5e20; color: white; }
+
+    /* Eingabefelder: Weißer Hintergrund für maximale Lesbarkeit */
+    .stTextInput>div>div>input, .stNumberInput>div>div>input { 
+        background-color: #ffffff !important; 
+        border: 2px solid #2e7d32 !important; 
+        color: #000000 !important; 
+    }
+    
+    /* SIDEBAR: Wieder Schwarz / Dunkelgrau */
+    [data-testid="stSidebar"] { 
+        background-color: #111111 !important; 
+    }
+    
+    /* Text in der Sidebar auf Weiß setzen */
+    [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label {
+        color: #ffffff !important;
+    }
+    
+    /* Radio-Buttons in der Sidebar lesbar machen */
+    [data-testid="stSidebar"] .stRadio label {
+        color: #ffffff !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -29,7 +52,7 @@ def distanz(lat1, lon1, lat2, lon2):
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
 
-# --- SIDEBAR ---
+# --- SIDEBAR (DUNKEL) ---
 with st.sidebar:
     logo_path = "assets/Kletterkompass_Logo.png"
     if os.path.exists(logo_path):
@@ -38,7 +61,7 @@ with st.sidebar:
     st.write("---")
     
     if not st.session_state.logged_in:
-        auth_mode = st.radio("Bereich:", ["Anmelden", "Registrieren"])
+        auth_mode = st.radio("Bereich wählen:", ["Anmelden", "Registrieren"])
         
         if auth_mode == "Anmelden":
             st.subheader("🔐 Login")
@@ -60,22 +83,22 @@ with st.sidebar:
             ne = st.text_input("E-Mail*")
             nv = st.text_input("Vorname")
             nn = st.text_input("Nachname")
-            na = st.number_input("Alter", 0, 100, 25)
+            na = st.number_input("Alter", 0, 120, 25)
             if st.button("Konto erstellen"):
                 if nu and npw and ne:
                     if registriere_nutzer(nu, npw, ne, nv, nn, na): 
                         st.success("Konto erstellt! Bitte anmelden.")
-                    else: st.error("Fehler: Name oder E-Mail schon vergeben.")
+                    else: st.error("Fehler: Name oder E-Mail vergeben.")
                 else: st.warning("Pflichtfelder (*) ausfüllen!")
     else:
         st.success(f"Moin {st.session_state.user}!")
-        if st.button("Logout"): 
+        if st.button("🚪 Logout"): 
             st.session_state.logged_in = False
             st.rerun()
 
     st.write("---")
-    if st.button("📍 Suche"): st.session_state.wahl = "📍 Suche"
-    if st.button("📄 Recht"): st.session_state.wahl = "📄 Recht"
+    if st.button("📍 Spielplatz suchen"): st.session_state.wahl = "📍 Suche"
+    if st.button("📄 Rechtliches"): st.session_state.wahl = "📄 Rechtliches"
 
 # --- HAUPTBEREICH ---
 if st.session_state.wahl == "📍 Suche":
@@ -115,6 +138,7 @@ if st.session_state.wahl == "📍 Suche":
                             fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
                             st.plotly_chart(fig, use_container_width=True)
                     else: st.warning("Keine Spots gefunden.")
+                else: st.info("Datenbank ist noch leer.")
             else: st.error("Ort nicht gefunden.")
 
     if st.session_state.logged_in:
@@ -130,6 +154,6 @@ if st.session_state.wahl == "📍 Suche":
                     if r and speichere_spielplatz(n, r[0]['geometry']['lat'], r[0]['geometry']['lng'], alt):
                         st.success("Gespeichert!"); st.rerun()
 
-elif st.session_state.wahl == "📄 Recht":
+elif st.session_state.wahl == "📄 Rechtliches":
     st.title("Impressum & Datenschutz")
     st.write("Hier folgen deine rechtlichen Texte.")
