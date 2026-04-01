@@ -1,9 +1,7 @@
 streamlit
 mysql-connector-python
 pandas
-pandas-geojson
-folium
-streamlit-folium
-opencv-python-headless
-Pillow
+plotly
 opencage
+numpy
+Pillow
