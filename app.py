@@ -31,9 +31,11 @@ def distanz(lat1, lon1, lat2, lon2):
     a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
+# States
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'user_role' not in st.session_state: st.session_state.user_role = 'guest'
 if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
+if 'forgot_pw' not in st.session_state: st.session_state.forgot_pw = False
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -43,18 +45,40 @@ with st.sidebar:
     
     if not st.session_state.logged_in:
         t_log, t_reg = st.tabs(["🔐 Login", "📝 Registrieren"])
+        
         with t_log:
-            u = st.text_input("Nutzername", key="l_u")
-            p = st.text_input("Passwort", type="password", key="l_p")
-            if st.button("Anmelden"):
-                df_n = hole_df("nutzer")
-                if not df_n.empty:
-                    user_match = df_n[(df_n['benutzername'] == u) & (df_n['passwort'] == hash_passwort(p))]
-                    if not user_match.empty:
-                        st.session_state.logged_in = True; st.session_state.user = u
-                        st.session_state.user_role = user_match.iloc[0]['rolle']
-                        st.rerun()
-                    else: st.error("Login falsch.")
+            if not st.session_state.forgot_pw:
+                u = st.text_input("Nutzername", key="l_u")
+                p = st.text_input("Passwort", type="password", key="l_p")
+                if st.button("Anmelden"):
+                    df_n = hole_df("nutzer")
+                    if not df_n.empty:
+                        user_match = df_n[(df_n['benutzername'] == u) & (df_n['passwort'] == hash_passwort(p))]
+                        if not user_match.empty:
+                            st.session_state.logged_in = True; st.session_state.user = u
+                            st.session_state.user_role = user_match.iloc[0]['rolle']
+                            st.rerun()
+                        else: st.error("Login falsch.")
+                
+                if st.button("🔑 Passwort vergessen?"):
+                    st.session_state.forgot_pw = True
+                    st.rerun()
+            else:
+                st.subheader("Passwort zurücksetzen")
+                res_u = st.text_input("Dein Nutzername")
+                res_m = st.text_input("Deine E-Mail")
+                neu_pw = st.text_input("Neues Passwort", type="password")
+                if st.button("Passwort jetzt ändern"):
+                    if check_user_mail_match(res_u, res_m):
+                        if update_passwort(res_u, neu_pw):
+                            st.success("Erfolg! Melde dich jetzt an.")
+                            st.session_state.forgot_pw = False
+                        else: st.error("Fehler beim Speichern.")
+                    else: st.error("Daten stimmen nicht überein.")
+                if st.button("Zurück zum Login"):
+                    st.session_state.forgot_pw = False
+                    st.rerun()
+        
         with t_reg:
             nu = st.text_input("Nutzername*", key="r_u")
             npw = st.text_input("Passwort*", type="password", key="r_p")
@@ -66,17 +90,18 @@ with st.sidebar:
                 if nu and npw and ne and agb:
                     if registriere_nutzer(nu, npw, ne, nv, nn, na, agb): st.success("Konto bereit!")
                     else: st.error("Fehler.")
+                else: st.warning("Check Pflichtfelder + AGB!")
     else:
         st.success(f"Moin {st.session_state.user}!")
-        if st.button("Logout"): st.session_state.logged_in = False; st.rerun()
+        if st.button("Logout"): 
+            st.session_state.logged_in = False
+            st.session_state.user_role = 'guest'
+            st.rerun()
 
     st.write("---")
     if st.button("📍 Spielplatz suchen"): st.session_state.wahl = "📍 Suche"
-    
-    # ADMIN BUTTON (Nur sichtbar für Admins)
     if st.session_state.logged_in and st.session_state.user_role == 'admin':
         if st.button("🛠️ Admin-Bereich"): st.session_state.wahl = "🛠️ Admin"
-    
     if st.button("📄 Rechtliches"): st.session_state.wahl = "📄 Recht"
 
 # --- HAUPTBEREICH: SUCHE ---
@@ -112,61 +137,47 @@ if st.session_state.wahl == "📍 Suche":
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
                         st.plotly_chart(fig, use_container_width=True)
 
-    # USER-FEEDBACK FORMULAR (Für alle eingeloggten User)
     if st.session_state.logged_in:
         st.write("---")
         c_f1, c_f2 = st.columns(2)
         with c_f1:
             with st.expander("💡 Neuen Spielplatz vorschlagen"):
                 with st.form("vorschlag"):
-                    v_n = st.text_input("Name")
-                    v_a = st.text_input("Adresse")
+                    v_n, v_a = st.text_input("Name"), st.text_input("Adresse")
                     v_alt = st.selectbox("Alter", ["0-3", "3-12", "Alle"])
-                    if st.form_submit_button("Vorschlag senden"):
+                    if st.form_submit_button("Senden"):
                         sende_vorschlag(v_n, v_a, v_alt, st.session_state.user)
-                        st.success("Danke! Der Admin prüft das.")
+                        st.success("Danke!")
         with c_f2:
             with st.expander("💬 Feedback zur App"):
                 with st.form("feedback"):
-                    msg = st.text_area("Deine Nachricht an uns")
+                    msg = st.text_area("Deine Nachricht")
                     if st.form_submit_button("Senden"):
                         sende_feedback(st.session_state.user, msg)
-                        st.success("Feedback gesendet!")
+                        st.success("Gesendet!")
 
 # --- ADMIN BEREICH ---
 elif st.session_state.wahl == "🛠️ Admin":
     st.title("Admin-Cockpit")
-    
     t1, t2, t3, t4 = st.tabs(["📥 Vorschläge", "👥 Nutzer", "💬 Feedback", "🏗️ Neu anlegen"])
-    
     with t1:
-        st.subheader("Neue Spielplatz-Vorschläge")
         df_v = hole_df("vorschlaege")
         if not df_v.empty: st.table(df_v)
-        else: st.write("Keine neuen Vorschläge.")
-
+        else: st.write("Leer.")
     with t2:
-        st.subheader("Registrierte Mitglieder")
         df_u = hole_df("nutzer")
-        if not df_u.empty: 
-            st.dataframe(df_u[['id', 'benutzername', 'email', 'vorname', 'nachname', 'alter_jahre', 'rolle']])
-        
+        if not df_u.empty: st.dataframe(df_u[['id', 'benutzername', 'email', 'vorname', 'nachname', 'rolle']])
     with t3:
-        st.subheader("Nutzer-Feedback")
         df_f = hole_df("feedback")
         if not df_f.empty: st.table(df_f)
-        else: st.write("Noch kein Feedback erhalten.")
-
     with t4:
-        st.subheader("Spot händisch hinzufügen")
         with st.form("admin_add"):
             n, a = st.text_input("Name"), st.text_input("Adresse")
             if st.form_submit_button("Speichern"):
                 gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                 r = gc.geocode(a + ", Deutschland")
                 if r and speichere_spielplatz(n, r[0]['geometry']['lat'], r[0]['geometry']['lng'], "Alle"):
-                    st.success("Gespeichert!"); st.rerun()
+                    st.success("Drin!"); st.rerun()
 
 elif st.session_state.wahl == "📄 Recht":
-    st.title("Rechtliches")
     st.write("Impressum & Datenschutz")
