@@ -2,9 +2,6 @@ import streamlit as st
 import mysql.connector
 import pandas as pd
 import hashlib
-from PIL import Image
-import io
-import base64
 
 def get_db_connection():
     try:
@@ -17,11 +14,10 @@ def get_db_connection():
             ssl_verify_cert=True
         )
     except Exception as e:
-        st.error(f"Datenbank-Fehler: {e}")
+        st.error(f"Datenbank-Verbindung fehlgeschlagen: {e}")
         return None
 
 def hash_passwort(passwort):
-    """Verwandelt das Passwort in einen unknackbaren Code."""
     return hashlib.sha256(str.encode(passwort)).hexdigest()
 
 def hole_df(tabelle="spielplaetze"):
@@ -46,7 +42,8 @@ def registriere_nutzer(username, pw, email, vorname, nachname, alter):
         cursor.execute(sql, (username, hash_passwort(pw), email, vorname, nachname, alter))
         conn.commit()
         return True
-    except:
+    except Exception as e:
+        st.error(f"Registrierungsfehler: {e}")
         return False
     finally:
         cursor.close()
