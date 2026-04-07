@@ -6,7 +6,6 @@ from admin_area import show_admin_area
 
 st.set_page_config(page_title="KletterKompass Deutschland", layout="wide")
 
-# CSS für schwarze Sidebar & grüne Akzente
 st.markdown("""
     <style>
     h1, h2, h3, label { color: #2e7d32 !important; }
@@ -52,7 +51,6 @@ with st.sidebar:
         if st.button("🛠️ Admin-Bereich"): st.session_state.wahl = "🛠️ Admin"
     if st.button("📄 Rechtliches"): st.session_state.wahl = "📄 Recht"
 
-# Routing
 if st.session_state.wahl == "📍 Suche":
     show_user_area()
 elif st.session_state.wahl == "💡 Vorschlag":
