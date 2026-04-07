@@ -1,42 +1,35 @@
 import streamlit as st
 import user_area
 
-# 1. Konfiguration (Muss ganz oben stehen)
+# --- STABILE KONFIGURATION ---
 st.set_page_config(page_title="Kletter-Kompass", page_icon="🧗‍♂️", initial_sidebar_state="collapsed")
 
-# Sidebar verstecken & Menü-Design
-st.markdown("""<style>[data-testid="stSidebar"] {display: none;} .stRadio > div {flex-direction: row; justify-content: center; gap: 30px;}</style>""", unsafe_allow_html=True)
+# CSS: Sidebar komplett unsichtbar machen
+st.markdown("""
+    <style>
+        [data-testid="stSidebar"] {display: none;}
+        .stRadio > div {flex-direction: row; justify-content: center; gap: 20px;}
+    </style>
+""", unsafe_allow_html=True)
 
 def main():
-    # Session State sicher initialisieren
     if 'user_id' not in st.session_state:
         st.session_state.user_id = None
-    if 'wahl' not in st.session_state:
-        st.session_state.wahl = "📍 Spots"
 
-    # LOGIN-LOGIK
+    # LOGIN (Ganz einfach, wie es bei dir funktioniert hat)
     if st.session_state.user_id is None:
-        st.title("🧗‍♂️ Kletter-Kompass Varel")
-        st.subheader("Login")
-        
-        # Container für ein sauberes Layout
-        with st.container():
-            u_name = st.text_input("Nutzername (z.B. Sabrina)")
-            u_pw = st.text_input("Passwort", type="password")
-            
-            if st.button("Anmelden", use_container_width=True):
-                if u_name and u_pw:
-                    # Hier loggen wir den User ein
-                    st.session_state.user_id = u_name
-                    st.rerun()
-                else:
-                    st.warning("Bitte Namen und Passwort eingeben.")
+        st.title("🧗‍♂️ Kletter-Kompass")
+        # Hier dein alter Login-Weg:
+        user_input = st.text_input("Dein Name")
+        if st.button("Starten"):
+            if user_input:
+                st.session_state.user_id = user_input
+                st.rerun()
     
-    # HAUPT-APP (Nur wenn eingeloggt)
+    # HAUPT-APP
     else:
-        # Navigation oben
-        menu = ["📍 Spots", "💡 Vorschlag"]
-        wahl = st.radio("Navigation", menu, horizontal=True, label_visibility="collapsed")
+        # Die Buttons als Navigation oben
+        wahl = st.radio("Menü", ["📍 Spots", "💡 Vorschlag"], horizontal=True, label_visibility="collapsed")
         st.divider()
 
         if wahl == "📍 Spots":
@@ -44,9 +37,7 @@ def main():
         elif wahl == "💡 Vorschlag":
             user_area.show_proposal_area()
         
-        # Abmelden Button ganz unten
-        st.sidebar.markdown("---") # Falls die Sidebar doch mal aufgeht
-        if st.button("Abmelden", use_container_width=True):
+        if st.button("Abmelden"):
             st.session_state.user_id = None
             st.rerun()
 
