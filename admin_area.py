@@ -4,7 +4,7 @@ from opencage.geocoder import OpenCageGeocode
 
 def show_admin_area():
     st.title("🛠️ Admin-Cockpit")
-    t1, t2, t3 = st.tabs(["📥 Vorschläge", "💬 Nutzer-Feedback", "👥 Nutzerliste"])
+    t1, t2, t3 = st.tabs(["📥 Vorschläge", "💬 Feedback", "👥 Nutzer"])
     
     with t1:
         df_v = hole_df("vorschlaege")
@@ -20,23 +20,14 @@ def show_admin_area():
                             gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                             res = gc.geocode(f"{r['adresse']}, {r['plz']} {r['stadt']}, Deutschland")
                             if res:
-                                if speichere_spielplatz(r['name'], res[0]['geometry']['lat'], res[0]['geometry']['lng'], "Alle", r['bundesland'], r['plz'], r['stadt'], r['bild_data'], r['foto_datenschutz']):
-                                    st.success("Live!")
+                                if speichere_spielplatz(r['name'], res[0]['geometry']['lat'], res[0]['geometry']['lng'], r['alter_gruppe'], r['bundesland'], r['plz'], r['stadt'], r['bild_data'], r['foto_datenschutz']):
+                                    st.success("Live!"); st.rerun()
         else: st.write("Keine Vorschläge.")
 
     with t2:
-        st.subheader("Eingegangene Nachrichten")
         df_f = hole_df("feedback")
-        if not df_f.empty:
-            # Neueste Nachrichten zuerst anzeigen
-            df_f = df_f.sort_values(by='erstellt_am', ascending=False)
-            for i, f in df_f.iterrows():
-                with st.chat_message("user"):
-                    st.write(f"**Von:** {f['nutzername']} ({f['erstellt_am']})")
-                    st.write(f.get('nachricht', 'Kein Inhalt'))
-        else:
-            st.write("Noch kein Feedback erhalten.")
-
+        if not df_f.empty: st.dataframe(df_f)
+    
     with t3:
         df_u = hole_df("nutzer")
         if not df_u.empty: st.dataframe(df_u[['benutzername', 'email', 'rolle']])
