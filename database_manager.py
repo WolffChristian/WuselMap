@@ -7,7 +7,6 @@ import io
 import base64
 
 def get_db_connection():
-    """SSL-Fix: Wir erzwingen SSL, aber ohne strikte Pfadprüfung."""
     try:
         return mysql.connector.connect(
             host=st.secrets["DB_HOST"],
@@ -15,7 +14,7 @@ def get_db_connection():
             user=st.secrets["DB_USER"],
             password=st.secrets["DB_PASSWORD"],
             database=st.secrets["DB_NAME"],
-            ssl_verify_cert=False, # Hier war der Fehler! Jetzt gefixt.
+            ssl_verify_cert=False, # Wichtig für Handy-Verbindung
             use_pure=True
         )
     except Exception as e:
@@ -39,7 +38,7 @@ def check_duplikat(tabelle, name, plz):
     cursor = conn.cursor()
     col = "standort" if tabelle == "spielplaetze" else "name"
     sql = f"SELECT id FROM {tabelle} WHERE {col} = %s AND plz = %s"
-    cursor.execute(sql, (name, plz))
+    cursor.execute(sql, (name.strip(), plz.strip()))
     res = cursor.fetchone()
     conn.close()
     return res is not None
