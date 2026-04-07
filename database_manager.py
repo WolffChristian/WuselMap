@@ -14,16 +14,21 @@ def get_db_connection():
 def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild_base64, hat_wc):
     conn = get_db_connection()
     cursor = conn.cursor()
-    # Genau 9 Felder (Inkl. hat_wc)
+    
+    # Wir listen die Spalten EXAKT auf
     sql = """INSERT INTO vorschlaege 
              (name, adresse, alter_empf, user_id, bundesland, plz, stadt, bild_data, hat_wc) 
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-    values = (n, ad, al, us, bund, plz, stadt, bild_base64, hat_wc)
+    
+    # Wir bauen das Tuple EXAKT mit 9 Werten
+    values = (str(n), str(ad), str(al), str(us), str(bund), str(plz), str(stadt), bild_base64, bool(hat_wc))
+    
     try:
         cursor.execute(sql, values)
         return True
     except Exception as e:
-        st.error(f"DB-Fehler: {e}")
+        # Das gibt uns die ECHTE Fehlermeldung im Streamlit aus
+        st.error(f"🚨 SQL-Fehler: {e}")
         return False
     finally:
         cursor.close()
@@ -35,7 +40,8 @@ def get_all_playgrounds():
     try:
         cursor.execute("SELECT * FROM spielplaetze")
         return cursor.fetchall()
-    except:
+    except Exception as e:
+        st.error(f"Fehler beim Laden: {e}")
         return []
     finally:
         cursor.close()
@@ -47,7 +53,8 @@ def bestaetige_spot(spot_id):
     try:
         cursor.execute("UPDATE spielplaetze SET zuletzt_bestaetigt = CURDATE() WHERE id = %s", (spot_id,))
         return True
-    except:
+    except Exception as e:
+        st.error(f"Fehler beim Bestätigen: {e}")
         return False
     finally:
         cursor.close()
