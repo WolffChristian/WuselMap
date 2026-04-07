@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
-import os
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, check_duplikat, aktualisiere_profil
 
 def distanz(lat1, lon1, lat2, lon2):
@@ -12,7 +11,6 @@ def distanz(lat1, lon1, lat2, lon2):
     a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
-# --- 1. DIE SUCHE ---
 def show_user_area():
     st.title("📍 Spielplätze finden")
     c1, c2 = st.columns([3, 1])
@@ -43,45 +41,44 @@ def show_user_area():
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
                         st.plotly_chart(fig, use_container_width=True)
 
-# --- 2. DER VORSCHLAG ---
 def show_proposal_area():
     st.title("💡 Neuen Spielplatz vorschlagen")
-    st.info("Füll die Daten aus. Wir prüfen den Spot und schalten ihn dann für alle frei!")
+    st.info("Bitte gib den Namen und die Straße an. Fotos sind willkommen!")
     
     with st.form("vorschlags_form"):
         v_n = st.text_input("Name des Spielplatzes*")
-        v_a = st.text_input("Straße & Hausnummer")
+        v_str = st.text_input("Straße*")
+        v_nr = st.text_input("Hausnummer (optional)")
         v_p = st.text_input("Postleitzahl*")
         v_s = st.text_input("Stadt*")
-        v_b = st.selectbox("Bundesland", ["Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen", "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen", "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen", "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen"])
+        v_b = st.selectbox("Bundesland", ["Niedersachsen", "Bayern", "NRW", "Hessen", "Schleswig-Holstein", "..."])
         v_alt = st.selectbox("Altersgruppe", ["0-3 Jahre", "3-12 Jahre", "Alle"])
         v_img = st.file_uploader("Bild hochladen", type=["jpg", "png", "jpeg"])
         
+        # Datenschutz-Haken für Fotos
+        st.write("---")
+        ds_check = st.checkbox("Datenschutz: Ich bestätige, dass auf den Fotos keine fremden Personen oder Kinder erkennbar sind.*")
+        
         if st.form_submit_button("Vorschlag jetzt einsenden"):
-            if v_n and v_p and v_s:
-                # Duplikat-Check
+            if v_n and v_str and v_p and v_s and ds_check:
                 if check_duplikat("spielplaetze", v_n, v_p) or check_duplikat("vorschlaege", v_n, v_p):
-                    st.warning("⚠️ Dieser Spot existiert bereits in unserer Datenbank!")
+                    st.warning("⚠️ Dieser Spot existiert bereits!")
                 else:
                     bild_data = optimiere_bild(v_img)
-                    sende_vorschlag(v_n, v_a, v_alt, st.session_state.user, v_b, v_p, v_s, bild_data)
-                    st.success("✅ Danke! Dein Vorschlag ist bei uns eingegangen.")
+                    voll_adr = f"{v_str} {v_nr}".strip()
+                    sende_vorschlag(v_n, voll_adr, v_alt, st.session_state.user, v_b, v_p, v_s, bild_data, ds_check)
+                    st.success("✅ Danke! Dein Vorschlag wird geprüft.")
             else:
-                st.warning("Bitte fülle die Pflichtfelder (*) aus.")
+                st.warning("Bitte alle Pflichtfelder (*) ausfüllen und den Datenschutz-Haken setzen.")
 
-# --- 3. DAS PROFIL ---
 def show_profile_area():
     st.title("👤 Mein Profil")
     df_u = hole_df("nutzer")
     user_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
-    
     with st.form("profil_edit"):
-        nv = st.text_input("Vorname", value=user_data['vorname'])
-        nn = st.text_input("Nachname", value=user_data['nachname'])
-        ne = st.text_input("E-Mail", value=user_data['email'])
-        na = st.number_input("Alter", value=int(user_data['alter_jahre']))
-        emo = st.selectbox("Dein Emoji-Avatar", ["🧗", "🤸", "🦁", "🚀", "🌟"], index=0)
-        
-        if st.form_submit_button("Änderungen speichern"):
+        nv, nn = st.text_input("Vorname", value=user_data['vorname']), st.text_input("Nachname", value=user_data['nachname'])
+        ne, na = st.text_input("E-Mail", value=user_data['email']), st.number_input("Alter", value=int(user_data['alter_jahre']))
+        emo = st.selectbox("Avatar Emoji", ["🧗", "🦁", "🚀", "🌟"], index=0)
+        if st.form_submit_button("Speichern"):
             if aktualisiere_profil(st.session_state.user, ne, nv, nn, na, emo):
                 st.success("Profil aktualisiert!"); st.rerun()
