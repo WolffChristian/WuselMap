@@ -4,12 +4,14 @@ from database_manager import hole_df, hash_passwort, registriere_nutzer
 from user_area import show_user_area, show_proposal_area, show_profile_area, show_feedback_area
 from admin_area import show_admin_area
 
-st.set_page_config(page_title="KletterKompass Deutschland", layout="wide")
+APP_NAME = "SpotLotse"
+st.set_page_config(page_title=f"{APP_NAME} - Dein Spot-Guide", layout="wide")
 
 st.markdown("""
     <style>
     h1, h2, h3, label { color: #2e7d32 !important; }
-    .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; font-weight: bold; width: 100%; }
+    .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; font-weight: bold; width: 100%; border: none; }
+    .stTextInput>div>div>input { background-color: #ffffff !important; border: 2px solid #2e7d32 !important; color: #000000 !important; }
     [data-testid="stSidebar"] { background-color: #000000 !important; }
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label { color: #ffffff !important; }
     </style>
@@ -20,7 +22,11 @@ if 'user_role' not in st.session_state: st.session_state.user_role = 'guest'
 if 'wahl' not in st.session_state: st.session_state.wahl = "📍 Suche"
 
 with st.sidebar:
-    if os.path.exists("assets/Kletterkompass_Logo.png"): st.image("assets/Kletterkompass_Logo.png", width=180)
+    if os.path.exists("assets/SpotLotse_Banner.png"): 
+        st.image("assets/SpotLotse_Banner.png", use_container_width=True)
+    else:
+        st.title(f"🧗 {APP_NAME}")
+    
     st.write("---")
     
     if not st.session_state.logged_in:
@@ -41,27 +47,21 @@ with st.sidebar:
     else:
         st.success(f"Moin {st.session_state.user}!")
         if st.button("👤 Mein Profil"): st.session_state.wahl = "👤 Profil"
-        if st.button("💡 Spielplatz vorschlagen"): st.session_state.wahl = "💡 Vorschlag"
+        if st.button("💡 Spot vorschlagen"): st.session_state.wahl = "💡 Vorschlag"
         if st.button("💬 Feedback geben"): st.session_state.wahl = "💬 Feedback"
         if st.button("🚪 Logout"): st.session_state.logged_in = False; st.rerun()
 
     st.write("---")
-    if st.button("📍 Spielplatz suchen"): st.session_state.wahl = "📍 Suche"
+    if st.button("📍 Spot suchen"): st.session_state.wahl = "📍 Suche"
     if st.session_state.logged_in and st.session_state.user_role == 'admin':
-        if st.button("🛠️ Admin-Bereich"): st.session_state.wahl = "🛠️ Admin"
+        if st.button("🛠️ Admin-Cockpit"): st.session_state.wahl = "🛠️ Admin"
     if st.button("📄 Rechtliches"): st.session_state.wahl = "📄 Recht"
 
-# Routing
-if st.session_state.wahl == "📍 Suche":
-    show_user_area()
-elif st.session_state.wahl == "💡 Vorschlag":
-    show_proposal_area()
-elif st.session_state.wahl == "👤 Profil":
-    show_profile_area()
-elif st.session_state.wahl == "💬 Feedback":
-    show_feedback_area()
-elif st.session_state.wahl == "🛠️ Admin":
-    show_admin_area()
+if st.session_state.wahl == "📍 Suche": show_user_area()
+elif st.session_state.wahl == "💡 Vorschlag": show_proposal_area()
+elif st.session_state.wahl == "👤 Profil": show_profile_area()
+elif st.session_state.wahl == "💬 Feedback": show_feedback_area()
+elif st.session_state.wahl == "🛠️ Admin": show_admin_area()
 elif st.session_state.wahl == "📄 Recht":
     st.title("Rechtliches")
     st.write("Impressum & Datenschutz")
