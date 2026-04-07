@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from database_manager import hole_df, hash_passwort, registriere_nutzer
-from user_area import show_user_area, show_proposal_area, show_profile_area
+from user_area import show_user_area, show_proposal_area, show_profile_area, show_feedback_area
 from admin_area import show_admin_area
 
 st.set_page_config(page_title="KletterKompass Deutschland", layout="wide")
@@ -10,7 +10,6 @@ st.markdown("""
     <style>
     h1, h2, h3, label { color: #2e7d32 !important; }
     .stButton>button { background-color: #2e7d32; color: white; border-radius: 8px; font-weight: bold; width: 100%; }
-    .stTextInput>div>div>input { background-color: #ffffff !important; border: 2px solid #2e7d32 !important; color: #000000 !important; }
     [data-testid="stSidebar"] { background-color: #000000 !important; }
     [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] label { color: #ffffff !important; }
     </style>
@@ -43,6 +42,7 @@ with st.sidebar:
         st.success(f"Moin {st.session_state.user}!")
         if st.button("👤 Mein Profil"): st.session_state.wahl = "👤 Profil"
         if st.button("💡 Spielplatz vorschlagen"): st.session_state.wahl = "💡 Vorschlag"
+        if st.button("💬 Feedback geben"): st.session_state.wahl = "💬 Feedback"
         if st.button("🚪 Logout"): st.session_state.logged_in = False; st.rerun()
 
     st.write("---")
@@ -51,12 +51,15 @@ with st.sidebar:
         if st.button("🛠️ Admin-Bereich"): st.session_state.wahl = "🛠️ Admin"
     if st.button("📄 Rechtliches"): st.session_state.wahl = "📄 Recht"
 
+# Routing
 if st.session_state.wahl == "📍 Suche":
     show_user_area()
 elif st.session_state.wahl == "💡 Vorschlag":
     show_proposal_area()
 elif st.session_state.wahl == "👤 Profil":
     show_profile_area()
+elif st.session_state.wahl == "💬 Feedback":
+    show_feedback_area()
 elif st.session_state.wahl == "🛠️ Admin":
     show_admin_area()
 elif st.session_state.wahl == "📄 Recht":
