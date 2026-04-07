@@ -32,17 +32,6 @@ def optimiere_bild(bild_file):
     img.save(buffer, format="JPEG", quality=70)
     return base64.b64encode(buffer.getvalue()).decode()
 
-def check_duplikat(tabelle, name, plz):
-    conn = get_db_connection()
-    if conn is None: return False
-    cursor = conn.cursor()
-    col = "standort" if tabelle == "spielplaetze" else "name"
-    sql = f"SELECT id FROM {tabelle} WHERE {col} = %s AND plz = %s"
-    cursor.execute(sql, (name.strip(), plz.strip()))
-    res = cursor.fetchone()
-    conn.close()
-    return res is not None
-
 def hole_df(tabelle="spielplaetze"):
     conn = get_db_connection()
     if conn is None: return pd.DataFrame()
@@ -53,6 +42,12 @@ def hole_df(tabelle="spielplaetze"):
             if 'standort' in df.columns: df = df.rename(columns={'standort': 'Standort'})
         return df
     finally: conn.close()
+
+def check_duplikat(tabelle, name, plz):
+    conn = get_db_connection(); cursor = conn.cursor()
+    col = "standort" if tabelle == "spielplaetze" else "name"
+    cursor.execute(f"SELECT id FROM {tabelle} WHERE {col} = %s AND plz = %s", (name.strip(), plz.strip()))
+    res = cursor.fetchone(); conn.close(); return res is not None
 
 def registriere_nutzer(un, pw, em, vn, nn, al, agb):
     conn = get_db_connection(); cursor = conn.cursor()
