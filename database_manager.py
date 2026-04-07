@@ -1,8 +1,6 @@
 import mysql.connector
 import streamlit as st
-from datetime import date
 
-# Verbindung zur TiDB Cloud
 def get_db_connection():
     return mysql.connector.connect(
         host=st.secrets["tidb"]["host"],
@@ -13,17 +11,16 @@ def get_db_connection():
         autocommit=True
     )
 
-# Einen neuen Vorschlag in die Tabelle 'vorschlaege' schreiben
 def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild_base64, hat_wc):
     conn = get_db_connection()
     cursor = conn.cursor()
+    # Genau 9 Felder (Inkl. hat_wc)
     sql = """INSERT INTO vorschlaege 
              (name, adresse, alter_empf, user_id, bundesland, plz, stadt, bild_data, hat_wc) 
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     values = (n, ad, al, us, bund, plz, stadt, bild_base64, hat_wc)
     try:
         cursor.execute(sql, values)
-        conn.commit()
         return True
     except Exception as e:
         st.error(f"DB-Fehler: {e}")
@@ -32,30 +29,25 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild_base64, hat_wc):
         cursor.close()
         conn.close()
 
-# Alle bereits geprüften Spielplätze laden
 def get_all_playgrounds():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("SELECT * FROM spielplaetze")
         return cursor.fetchall()
-    except Exception as e:
-        st.error(f"Fehler beim Laden: {e}")
+    except:
         return []
     finally:
         cursor.close()
         conn.close()
 
-# Zeitstempel aktualisieren (Ich bin hier!)
 def bestaetige_spot(spot_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Nutzt das SQL-Kommando CURDATE() für das heutige Datum
         cursor.execute("UPDATE spielplaetze SET zuletzt_bestaetigt = CURDATE() WHERE id = %s", (spot_id,))
         return True
-    except Exception as e:
-        st.error(f"Fehler beim Bestätigen: {e}")
+    except:
         return False
     finally:
         cursor.close()
