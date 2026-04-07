@@ -14,7 +14,7 @@ def get_db_connection():
             user=st.secrets["DB_USER"],
             password=st.secrets["DB_PASSWORD"],
             database=st.secrets["DB_NAME"],
-            ssl_verify_cert=False, # Wichtig für Handy-Verbindung
+            ssl_verify_cert=False, 
             use_pure=True
         )
     except Exception as e:
@@ -72,19 +72,19 @@ def aktualisiere_profil(un, em, vn, nn, al, emo):
     except: return False
     finally: cursor.close(); conn.close()
 
-def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild):
+def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
     conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO spielplaetze (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
+    sql = "INSERT INTO spielplaetze (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
     try:
-        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild))
+        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
         conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
 
-def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild):
+def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von, bundesland, plz, stadt, bild_data) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
-    cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild))
+    sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
     conn.commit(); conn.close()
 
 def sende_feedback(us, ms):
