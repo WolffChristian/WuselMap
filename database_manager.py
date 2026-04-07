@@ -56,7 +56,7 @@ def hole_df(tabelle="spielplaetze"):
 
 def registriere_nutzer(un, pw, em, vn, nn, al, agb):
     conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle, profil_emoji) VALUES (%s,%s,%s,%s,%s,%s,%s,'user','🧗')"
+    sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
     try:
         cursor.execute(sql, (un.strip(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
         conn.commit(); return True
@@ -88,25 +88,9 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     conn.commit(); conn.close()
 
 def sende_feedback(us, ms):
-    """Speichert Nutzer-Feedback in der Tabelle feedback."""
-    conn = get_db_connection()
-    if conn is None: return False
-    cursor = conn.cursor()
+    conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
     try:
-        cursor.execute(sql, (us, ms))
-        conn.commit()
-        return True
+        cursor.execute(sql, (us, ms)); conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
-
-def check_user_mail_match(u, m):
-    conn = get_db_connection(); cursor = conn.cursor()
-    cursor.execute("SELECT id FROM nutzer WHERE benutzername = %s AND email = %s", (u.strip(), m.strip()))
-    res = cursor.fetchone(); conn.close(); return res is not None
-
-def update_passwort(u, neu_pw):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "UPDATE nutzer SET passwort = %s WHERE benutzername = %s"
-    cursor.execute(sql, (hash_passwort(neu_pw), u.strip()))
-    conn.commit(); conn.close(); return True
