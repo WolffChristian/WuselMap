@@ -1,91 +1,79 @@
-import streamlit as st
 import mysql.connector
-import pandas as pd
-import hashlib
-from PIL import Image
-import io
-import base64
+import streamlit as st
+from datetime import date
 
+# 1. Verbindung zur Datenbank herstellen
 def get_db_connection():
-    try:
-        return mysql.connector.connect(
-            host=st.secrets["DB_HOST"],
-            port=st.secrets["DB_PORT"],
-            user=st.secrets["DB_USER"],
-            password=st.secrets["DB_PASSWORD"],
-            database=st.secrets["DB_NAME"],
-            ssl_verify_cert=False, 
-            use_pure=True
-        )
-    except Exception as e:
-        st.error(f"Datenbank-Fehler: {e}")
-        return None
+    return mysql.connector.connect(
+        host=st.secrets["tidb"]["host"],
+        port=st.secrets["tidb"]["port"],
+        user=st.secrets["tidb"]["user"],
+        password=st.secrets["tidb"]["password"],
+        database=st.secrets["tidb"]["database"],
+        autocommit=True
+    )
 
-def hash_passwort(pw):
-    return hashlib.sha256(str.encode(pw.strip())).hexdigest()
-
-def optimiere_bild(bild_file):
-    if bild_file is None: return None
-    img = Image.open(bild_file)
-    img.thumbnail((800, 800))
-    buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=70)
-    return base64.b64encode(buffer.getvalue()).decode()
-
-def hole_df(tabelle="spielplaetze"):
+# 2. Einen neuen Vorschlag einsenden (Sabrinas Bereich)
+def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild_base64, hat_wc):
     conn = get_db_connection()
-    if conn is None: return pd.DataFrame()
+    cursor = conn.cursor()
+    
+    # Der SQL-Befehl muss exakt so viele Spalten haben wie Werte (%s)
+    sql = """INSERT INTO vorschlaege 
+             (name, adresse, alter_empf, user_id, bundesland, plz, stadt, bild_data, hat_wc) 
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+    
+    values = (n, ad, al, us, bund, plz, stadt, bild_base64, hat_wc)
+    
     try:
-        df = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
-        if not df.empty:
-            df.columns = [c.lower() for c in df.columns]
-            if 'standort' in df.columns: df = df.rename(columns={'standort': 'Standort'})
-        return df
-    finally: conn.close()
+        cursor.execute(sql, values)
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"Datenbank-Fehler beim Senden: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
-def check_duplikat(tabelle, name, plz):
-    conn = get_db_connection(); cursor = conn.cursor()
-    col = "standort" if tabelle == "spielplaetze" else "name"
-    cursor.execute(f"SELECT id FROM {tabelle} WHERE {col} = %s AND plz = %s", (name.strip(), plz.strip()))
-    res = cursor.fetchone(); conn.close(); return res is not None
-
-def registriere_nutzer(un, pw, em, vn, nn, al, agb):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
+# 3. Alle Spielplätze für die Karte/Liste laden
+def get_all_playgrounds():
+    conn = get_db_connection()
+    # dictionary=True sorgt dafür, dass wir auf Spalten per Namen r['hat_wc'] zugreifen können
+    cursor = conn.cursor(dictionary=True)
+    
+    sql = "SELECT * FROM spielplaetze"
+    
     try:
-        cursor.execute(sql, (un.strip(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
-        conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
+        cursor.execute(sql)
+        return cursor.fetchall()
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Daten: {e}")
+        return []
+    finally:
+        cursor.close()
+        conn.close()
 
-def aktualisiere_profil(un, em, vn, nn, al, emo):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "UPDATE nutzer SET email=%s, vorname=%s, nachname=%s, alter_jahre=%s, profil_emoji=%s WHERE benutzername=%s"
+# 4. Den "Ich bin hier"-Button verarbeiten (Datum aktualisieren)
+def bestaetige_spot(spot_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Setzt das Feld zuletzt_bestaetigt auf das heutige Datum
+    sql = "UPDATE spielplaetze SET zuletzt_bestaetigt = CURDATE() WHERE id = %s"
+    
     try:
-        cursor.execute(sql, (em.strip(), vn, nn, al, emo, un))
-        conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
+        cursor.execute(sql, (spot_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"Fehler bei der Bestätigung: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
-def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO spielplaetze (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-    try:
-        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
-        conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-    cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
-    conn.commit(); conn.close()
-
-def sende_feedback(us, ms):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
-    try:
-        cursor.execute(sql, (us, ms)); conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
+# 5. (Optional für später) Einen Vorschlag vom Admin freischalten
+def vorschlag_freischalten(vorschlag_id):
+    # Hier würde die Logik rein, um Daten von 'vorschlaege' nach 'spielplaetze' zu kopieren
+    pass
