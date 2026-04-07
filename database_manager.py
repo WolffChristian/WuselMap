@@ -4,114 +4,52 @@ import pandas as pd
 import hashlib
 
 def get_db_connection():
-    """Verbindung zur TiDB Cloud."""
     try:
         return mysql.connector.connect(
-            host=st.secrets["DB_HOST"],
-            port=st.secrets["DB_PORT"],
-            user=st.secrets["DB_USER"],
-            password=st.secrets["DB_PASSWORD"],
-            database=st.secrets["DB_NAME"],
-            ssl_verify_cert=True
+            host=st.secrets["DB_HOST"], port=st.secrets["DB_PORT"],
+            user=st.secrets["DB_USER"], password=st.secrets["DB_PASSWORD"],
+            database=st.secrets["DB_NAME"], ssl_verify_cert=True
         )
     except Exception as e:
-        st.error(f"Datenbank-Verbindung fehlgeschlagen: {e}")
-        return None
+        st.error(f"Datenbank-Fehler: {e}"); return None
 
-def hash_passwort(passwort):
-    """Verschlüsselt Passwörter sicher per SHA-256."""
-    return hashlib.sha256(str.encode(passwort.strip())).hexdigest()
+def hash_passwort(pw):
+    return hashlib.sha256(str.encode(pw.strip())).hexdigest()
 
 def hole_df(tabelle="spielplaetze"):
-    """Lädt Daten aus der Datenbank in ein DataFrame."""
     conn = get_db_connection()
     if conn is None: return pd.DataFrame()
     try:
         df = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
         if not df.empty:
             df.columns = [c.lower() for c in df.columns]
-            if 'standort' in df.columns:
-                df = df.rename(columns={'standort': 'Standort'})
+            if 'standort' in df.columns: df = df.rename(columns={'standort': 'Standort'})
         return df
-    finally:
-        conn.close()
+    finally: conn.close()
 
-def registriere_nutzer(username, pw, email, vorname, nachname, alter, agb):
-    """Speichert neuen Nutzer mit Standard-Emoji."""
-    conn = get_db_connection()
-    if conn is None: return False
-    cursor = conn.cursor()
-    sql = """INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle, profil_emoji) 
-             VALUES (%s, %s, %s, %s, %s, %s, %s, 'user', '🧗')"""
+def registriere_nutzer(un, pw, em, vn, nn, al, agb):
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
     try:
-        cursor.execute(sql, (username.strip(), hash_passwort(pw), email.strip(), vorname, nachname, alter, agb))
-        conn.commit()
-        return True
+        cursor.execute(sql, (un.strip(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
+        conn.commit(); return True
     except: return False
-    finally:
-        cursor.close(); conn.close()
+    finally: cursor.close(); conn.close()
 
-def aktualisiere_profil(username, email, vorname, nachname, alter, emoji):
-    """Speichert Profiländerungen."""
-    conn = get_db_connection()
-    if conn is None: return False
-    cursor = conn.cursor()
-    sql = """UPDATE nutzer SET email=%s, vorname=%s, nachname=%s, alter_jahre=%s, profil_emoji=%s 
-             WHERE benutzername=%s"""
-    try:
-        cursor.execute(sql, (email.strip(), vorname, nachname, alter, emoji, username))
-        conn.commit()
-        return True
-    except: return False
-    finally:
-        cursor.close(); conn.close()
-
-def speichere_spielplatz(name, lat, lon, alter):
-    """Admin-Funktion: Neuen Spot anlegen."""
-    conn = get_db_connection()
-    if conn is None: return False
-    cursor = conn.cursor()
+def speichere_spielplatz(n, lat, lon, al):
+    conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO spielplaetze (standort, lat, lon, altersfreigabe) VALUES (%s, %s, %s, %s)"
     try:
-        cursor.execute(sql, (name, lat, lon, alter))
-        conn.commit()
-        return True
-    finally:
-        cursor.close(); conn.close()
+        cursor.execute(sql, (n, lat, lon, al)); conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
 
-def sende_vorschlag(name, adr, alter, user):
-    """Nutzer-Funktion: Neuen Spielplatz vorschlagen."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+def sende_vorschlag(n, ad, al, us):
+    conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von) VALUES (%s, %s, %s, %s)"
-    cursor.execute(sql, (name, adr, alter, user))
-    conn.commit()
-    conn.close()
+    cursor.execute(sql, (n, ad, al, us)); conn.commit(); conn.close()
 
-def sende_feedback(user, msg):
-    """Nutzer-Feedback speichern."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+def sende_feedback(us, ms):
+    conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
-    cursor.execute(sql, (user, msg))
-    conn.commit()
-    conn.close()
-
-def check_user_mail_match(u, m):
-    """Passwort-Vergessen: Validierung."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM nutzer WHERE benutzername = %s AND email = %s", (u.strip(), m.strip()))
-    res = cursor.fetchone()
-    conn.close()
-    return res is not None
-
-def update_passwort(u, neu_pw):
-    """Passwort-Reset."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = "UPDATE nutzer SET passwort = %s WHERE benutzername = %s"
-    cursor.execute(sql, (hash_passwort(neu_pw), u.strip()))
-    conn.commit()
-    conn.close()
-    return True
+    cursor.execute(sql, (us, ms)); conn.commit(); conn.close()
