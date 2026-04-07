@@ -88,9 +88,17 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     conn.commit(); conn.close()
 
 def sende_feedback(us, ms):
-    conn = get_db_connection(); cursor = conn.cursor()
+    """Speichert Nutzer-Feedback in der Tabelle feedback."""
+    conn = get_db_connection()
+    if conn is None: return False
+    cursor = conn.cursor()
     sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
-    cursor.execute(sql, (us, ms)); conn.commit(); conn.close()
+    try:
+        cursor.execute(sql, (us, ms))
+        conn.commit()
+        return True
+    except: return False
+    finally: cursor.close(); conn.close()
 
 def check_user_mail_match(u, m):
     conn = get_db_connection(); cursor = conn.cursor()
