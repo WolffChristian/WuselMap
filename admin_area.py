@@ -41,7 +41,11 @@ def show_admin_area():
         else:
             st.write("Kein Feedback.")
 
-    with t3:
+   with t3:
         df_n = hole_df("nutzer")
         if not df_n.empty:
-            st.dataframe(df_n.drop(columns=['passwort'], errors='ignore'), use_container_width=True)
+            # KORREKTUR: st.table statt st.dataframe
+            # st.table erzeugt eine saubere HTML-Tabelle, die unser CSS in styles.py versteht!
+            st.table(df_n.drop(columns=['passwort'], errors='ignore'))
+        else:
+            st.write("Keine Nutzer registriert.")
