@@ -1,6 +1,5 @@
 import streamlit as st
-from database_manager import hole_df, speichere_spielplatz
-from opencage.geocoder import OpenCageGeocode
+from database_manager import hole_df, speichere_spielplatz, loesche_vorschlag # loesche_vorschlag importiert
 
 def show_admin_area():
     st.title("🛠️ Admin-Bereich")
@@ -10,13 +9,11 @@ def show_admin_area():
     with t1:
         df_v = hole_df("vorschlaege")
         if not df_v.empty:
-            # Spaltennamen säubern
             df_v.columns = [c.lower().strip() for c in df_v.columns]
-            
             st.info(f"Es liegen {len(df_v)} Vorschläge zur Prüfung vor.")
             
             for i, r in df_v.iterrows():
-                # Wir holen uns die Daten sicher ab
+                v_id = r.get('id', i)
                 name_spot = r.get('standort', 'Unbekannter Spot')
                 stadt_spot = r.get('stadt', 'Unbekannter Ort')
                 adresse_spot = r.get('adresse', 'Keine Adresse')
@@ -25,10 +22,7 @@ def show_admin_area():
                 bild_data = r.get('bild_data')
                 
                 with st.container(border=True):
-                    # Kopfzeile des Vorschlags
                     st.markdown(f"### 📍 {name_spot}")
-                    
-                    # Layout: Links Details, Rechts das Foto
                     col_text, col_img = st.columns([1, 1])
                     
                     with col_text:
@@ -36,12 +30,11 @@ def show_admin_area():
                         st.write(f"**Adresse:** {adresse_spot}")
                         st.write(f"**PLZ:** {plz_spot}")
                         st.write(f"**Altersgruppe:** {alter_spot}")
-                        
                         st.divider()
                         
-                        # Freigabe-Button
-                        if st.button(f"✅ Spot live schalten", key=f"v_{r.get('id', i)}"):
+                        if st.button(f"✅ Spot live schalten", key=f"v_{v_id}"):
                             with st.spinner("Geocoding & Speichern..."):
+                                from opencage.geocoder import OpenCageGeocode
                                 gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                                 query = f"{adresse_spot}, {plz_spot} {stadt_spot}, Deutschland"
                                 res = gc.geocode(query)
@@ -50,41 +43,40 @@ def show_admin_area():
                                     lat = res[0]['geometry']['lat']
                                     lon = res[0]['geometry']['lng']
                                     
-                                    erfolg = speichere_spielplatz(
+                                    # 1. Schritt: In Haupttabelle speichern
+                                    erfolg_save = speichere_spielplatz(
                                         name_spot, lat, lon, alter_spot, 
                                         "Niedersachsen", plz_spot, stadt_spot, 
                                         bild_data, r.get('foto_datenschutz', 1)
                                     )
                                     
-                                    if erfolg:
-                                        st.success(f"'{name_spot}' ist jetzt auf der Karte!")
-                                        st.rerun()
+                                    if erfolg_save:
+                                        # 2. Schritt: Aus Vorschlägen löschen
+                                        if loesche_vorschlag(v_id):
+                                            st.success(f"'{name_spot}' ist live und Vorschlag wurde archiviert!")
+                                            st.rerun() # Seite neu laden -> Vorschlag ist weg
+                                        else:
+                                            st.warning("Spot ist live, aber Vorschlag konnte nicht gelöscht werden.")
                                     else:
-                                        st.error("Fehler beim Speichern in der Haupttabelle.")
+                                        st.error("Fehler beim Speichern.")
                                 else:
-                                    st.error("Adresse konnte nicht geocodiert werden.")
+                                    st.error("Adresse nicht gefunden.")
 
                     with col_img:
                         if bild_data:
-                            # Wir zeigen das Foto direkt an
-                            st.image(f"data:image/jpeg;base64,{bild_data}", 
-                                     caption=f"Foto von {name_spot}", 
-                                     use_container_width=True)
+                            st.image(f"data:image/jpeg;base64,{bild_data}", use_container_width=True)
                         else:
-                            st.warning("Kein Foto hochgeladen.")
+                            st.warning("Kein Foto.")
         else:
             st.write("Keine neuen Vorschläge vorhanden.")
 
     with t2:
         df_f = hole_df("feedback")
-        if not df_f.empty:
-            st.table(df_f)
-        else:
-            st.write("Kein Feedback vorhanden.")
+        if not df_f.empty: st.table(df_f)
+        else: st.write("Kein Feedback.")
 
     with t3:
         df_n = hole_df("nutzer")
         if not df_n.empty:
             st.table(df_n.drop(columns=['passwort'], errors='ignore'))
-        else:
-            st.write("Keine Nutzer registriert.")
+        else: st.write("Keine Nutzer.")
