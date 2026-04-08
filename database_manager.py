@@ -8,6 +8,7 @@ import base64
 
 def get_db_connection():
     try:
+        # Nutzt deine Secrets: DB_HOST, DB_PORT, etc.
         return mysql.connector.connect(
             host=st.secrets["DB_HOST"],
             port=st.secrets["DB_PORT"],
@@ -26,11 +27,18 @@ def hash_passwort(pw):
 
 def optimiere_bild(bild_file):
     if bild_file is None: return None
-    img = Image.open(bild_file)
-    img.thumbnail((800, 800))
-    buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=70)
-    return base64.b64encode(buffer.getvalue()).decode()
+    try:
+        img = Image.open(bild_file)
+        # Konvertiert zu RGB (falls es PNG mit Transparenz ist)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        img.thumbnail((800, 800))
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=70)
+        return base64.b64encode(buffer.getvalue()).decode()
+    except Exception as e:
+        st.error(f"Bildfehler: {e}")
+        return None
 
 def hole_df(tabelle="spielplaetze"):
     conn = get_db_connection()
@@ -43,32 +51,21 @@ def hole_df(tabelle="spielplaetze"):
         return df
     finally: conn.close()
 
-def check_duplikat(tabelle, name, plz):
-    conn = get_db_connection(); cursor = conn.cursor()
-    col = "standort" if tabelle == "spielplaetze" else "name"
-    cursor.execute(f"SELECT id FROM {tabelle} WHERE {col} = %s AND plz = %s", (name.strip(), plz.strip()))
-    res = cursor.fetchone(); conn.close(); return res is not None
-
 def registriere_nutzer(un, pw, em, vn, nn, al, agb):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    if conn is None: return False
+    cursor = conn.cursor()
     sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
     try:
         cursor.execute(sql, (un.strip(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
-        conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def aktualisiere_profil(un, em, vn, nn, al, emo):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "UPDATE nutzer SET email=%s, vorname=%s, nachname=%s, alter_jahre=%s, profil_emoji=%s WHERE benutzername=%s"
-    try:
-        cursor.execute(sql, (em.strip(), vn, nn, al, emo, un))
-        conn.commit(); return True
+        conn.commit()
+        return True
     except: return False
     finally: cursor.close(); conn.close()
 
 def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    cursor = conn.cursor()
     sql = "INSERT INTO spielplaetze (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
     try:
         cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
@@ -77,15 +74,12 @@ def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
     finally: cursor.close(); conn.close()
 
 def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    cursor = conn.cursor()
     sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-    cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
-    conn.commit(); conn.close()
-
-def sende_feedback(us, ms):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
     try:
-        cursor.execute(sql, (us, ms)); conn.commit(); return True
+        cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
+        conn.commit()
+        return True
     except: return False
     finally: cursor.close(); conn.close()
