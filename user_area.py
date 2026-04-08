@@ -1,44 +1,71 @@
 import streamlit as st
+import pandas as pd
+import plotly.express as px
+from opencage.geocoder import OpenCageGeocode
+import numpy as np
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
 
-# --- UNTER-FUNKTION 1: SUCHE ---
+def distanz(lat1, lon1, lat2, lon2):
+    R = 6371
+    dlat, dlon = np.radians(lat2-lat1), np.radians(lon2-lon1)
+    a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
+    return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
+
+# --- DIE UNTER-BEREICHE ---
 def show_user_area():
     st.markdown("### 📍 Kletter-Spots suchen")
-    # Hier kommt dein Such-Code rein (Karte, Umkreis etc.)
-    st.info("Hier kannst du Spots in deiner Nähe finden.")
+    adr = st.text_input("Wo suchst du?", "Varel")
+    if st.button("🔍 Suchen"):
+        st.info(f"Suche läuft für {adr}...")
+        # Hier deine Plotly-Karten-Logik einfügen
 
-# --- UNTER-FUNKTION 2: VORSCHLAG ---
 def show_proposal_area():
-    st.markdown("### 💡 Neuen Spot vorschlagen")
-    # Hier kommt dein Formular-Code rein
-    st.info("Sende uns einen neuen Kletter-Spot.")
+    st.markdown("### 💡 Spot vorschlagen")
+    with st.form("v_form"):
+        v_n = st.text_input("Name*")
+        v_s = st.text_input("Straße*")
+        v_p = st.text_input("PLZ*")
+        v_st = st.text_input("Stadt*")
+        v_img = st.file_uploader("Foto", type=["jpg", "png"])
+        if st.form_submit_button("Einsenden"):
+            if v_n and v_s:
+                st.success("Vorschlag eingereicht!")
 
-# --- HAUPT-FUNKTION: PROFIL (Mit den Slidern/Tabs) ---
+# --- DAS NEUE PROFIL-DASHBOARD ---
 def show_profile_area():
-    # Das ist der Bereich, in dem man nach dem Login landet
-    st.title(f"Willkommen, {st.session_state.user}!")
+    st.title("👤 Mein Bereich")
     
-    # HIER SIND DIE UNTER-KATEGORIEN (Slider)
-    # Suche und Vorschlag sind jetzt TEIL des Profils
+    # HIER SIND DIE UNTER-BALKEN (Genau wie du wolltest)
     unter_tabs = st.tabs(["⚙️ Meine Daten", "📍 Suche", "💡 Vorschlag"])
     
     with unter_tabs[0]:
-        st.write("### Deine Profildaten")
-        # Hier die Felder für E-Mail, Name etc. anzeigen
-        st.write("Hier kannst du dein Profil verwalten.")
+        st.subheader("Persönliche Daten")
+        df_u = hole_df("nutzer")
+        if not df_u.empty and st.session_state.user in df_u['benutzername'].values:
+            user_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
+            with st.form("p_form"):
+                ne = st.text_input("E-Mail", value=user_data['email'])
+                nv = st.text_input("Vorname", value=user_data['vorname'])
+                nn = st.text_input("Nachname", value=user_data['nachname'])
+                if st.form_submit_button("Speichern"):
+                    aktualisiere_profil(st.session_state.user, ne, nv, nn, user_data['alter_jahre'], "🧗")
+                    st.success("Update!"); st.rerun()
         
+        st.divider()
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.logged_in = False
+            st.rerun()
+
     with unter_tabs[1]:
-        # Ruft die Suche innerhalb des Profils auf
         show_user_area()
-        
+
     with unter_tabs[2]:
-        # Ruft den Vorschlag innerhalb des Profils auf
         show_proposal_area()
 
-# --- WEITERE HAUPT-BEREICHE ---
 def show_feedback_area():
-    st.title("💬 Dein Feedback")
-    st.write("Was können wir verbessern?")
+    st.title("💬 Feedback")
+    msg = st.text_area("Deine Nachricht")
+    if st.button("Senden"): st.success("Danke!")
 
 def show_legal_area():
     st.title("📄 Rechtliches")
