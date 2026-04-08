@@ -22,6 +22,7 @@ def get_db_connection():
         return None
 
 def hash_passwort(pw):
+    # .strip() entfernt Leerzeichen am Anfang/Ende
     return hashlib.sha256(str.encode(pw.strip())).hexdigest()
 
 def optimiere_bild(bild_file):
@@ -44,11 +45,15 @@ def hole_df(tabelle="spielplaetze"):
     finally: conn.close()
 
 def registriere_nutzer(un, pw, em, vn, nn, al, agb):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    if conn is None: return False
+    cursor = conn.cursor()
+    # .strip().lower() macht aus " Christian " -> "christian"
     sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
     try:
-        cursor.execute(sql, (un.strip(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
-        conn.commit(); return True
+        cursor.execute(sql, (un.strip().lower(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
+        conn.commit()
+        return True
     except: return False
     finally: cursor.close(); conn.close()
 
