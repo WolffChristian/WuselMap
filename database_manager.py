@@ -69,8 +69,7 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
     try:
         cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
-        conn.commit()
-        return True
+        conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
 
