@@ -70,6 +70,8 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     try:
         cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
         conn.commit()
+        return True
+    except: return False
     finally: cursor.close(); conn.close()
 
 def sende_feedback(us, ms):
