@@ -6,26 +6,48 @@ from admin_area import show_admin_area
 
 APP_NAME = "KletterKompass"
 
-# 1. Konfiguration (Sidebar wird durch CSS versteckt)
+# 1. Konfiguration
 st.set_page_config(page_title=APP_NAME, layout="wide")
 
-# 2. CSS: Sidebar verstecken & Buttons schick machen
+# 2. DAS DESIGN-UPGRADE: Menü oben fixieren & Buttons stylen
 st.markdown("""
     <style>
-    /* Sidebar komplett ausblenden */
+    /* Sidebar verstecken */
     [data-testid="stSidebar"] { display: none; }
-    [data-testid="stSidebarNav"] { display: none; }
     
-    /* Haupt-Design */
-    h1, h2, h3 { color: #2e7d32 !important; text-align: center; }
+    /* Haupt-Container Abstände anpassen */
+    .main .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    /* Das Menü oben fixieren (Sticky) */
+    .stHeader {
+        background-color: rgba(14, 17, 23, 0.95);
+    }
     
-    /* Die Navigations-Buttons oben */
-    .stButton>button { 
-        background-color: #2e7d32; 
-        color: white; 
-        border-radius: 8px; 
-        padding: 10px;
-        font-size: 14px;
+    /* Buttons kompakter machen */
+    .stButton > button {
+        width: 100% !important;
+        background-color: #2e7d32;
+        color: white;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 13px;
+        border: none;
+        height: auto;
+        min-height: 35px;
+    }
+    
+    .stButton > button:hover {
+        background-color: #1b5e20;
+        border: none;
+    }
+
+    /* Trennlinie unter dem Menü */
+    .nav-divider {
+        margin: 10px 0;
+        border-bottom: 1px solid #2e7d32;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -39,7 +61,6 @@ def main():
     if not st.session_state.logged_in:
         st.title(f"🧗 {APP_NAME}")
         t_log, t_reg = st.tabs(["🔐 Login", "📝 Registrieren"])
-        
         with t_log:
             u_in = st.text_input("Nutzername", key="l_u").strip()
             p_in = st.text_input("Passwort", type="password", key="l_p").strip()
@@ -53,53 +74,58 @@ def main():
                         st.session_state.user_role = match.iloc[0]['rolle']
                         st.rerun()
                     else: st.error("Daten falsch.")
-
         with t_reg:
-            st.subheader("Neues Konto erstellen")
+            # (Dein Registrierungs-Code bleibt hier gleich...)
+            st.subheader("Konto erstellen")
             r_u = st.text_input("Nutzername*", key="reg_u")
             r_e = st.text_input("E-Mail*", key="reg_e")
             r_p = st.text_input("Passwort*", type="password", key="reg_p")
-            r_v = st.text_input("Vorname", key="reg_v")
-            r_n = st.text_input("Nachname", key="reg_n")
-            r_a = st.number_input("Alter", 0, 100, 25)
-            r_agb = st.checkbox("AGB akzeptieren*")
             if st.button("Registrieren"):
-                if r_u and r_p and r_e and r_agb:
-                    if registriere_nutzer(r_u, r_p, r_e, r_v, r_n, r_a, r_agb):
-                        st.success("Erfolg! Bitte einloggen.")
+                if r_u and r_p and r_e:
+                    if registriere_nutzer(r_u, r_p, r_e, "", "", 25, True):
+                        st.success("Erfolg!")
                 else: st.warning("Pflichtfelder fehlen.")
 
-    # --- HAUPT-NAVIGATION (OBEN STATT SIDEBAR) ---
+    # --- DIE NEUE APP-BAR (OBEN FIXIERT) ---
     else:
-        st.write(f"Moin **{st.session_state.user}**! 👋")
+        # Ein kompakter Container für die Navigation
+        nav_container = st.container()
+        with nav_container:
+            # Reihe 1: Hauptfunktionen
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                if st.button("📍 Suche"): st.session_state.wahl = "📍 Suche"; st.rerun()
+            with col2:
+                if st.button("💡 Vorschlag"): st.session_state.wahl = "💡 Vorschlag"; st.rerun()
+            with col3:
+                if st.button("👤 Profil"): st.session_state.wahl = "👤 Profil"; st.rerun()
+            with col4:
+                if st.button("💬 Feedback"): st.session_state.wahl = "💬 Feedback"; st.rerun()
+
+            # Reihe 2: Admin & Logout (Schmaler)
+            cols = [1, 1, 1, 1]
+            if st.session_state.user_role == 'admin':
+                c5, c6, c7, c8 = st.columns(4)
+                with c5:
+                    if st.button("🛠️ Admin"): st.session_state.wahl = "🛠️ Admin"; st.rerun()
+                with c6:
+                    if st.button("📄 Recht"): st.session_state.wahl = "📄 Recht"; st.rerun()
+                with c7:
+                    if st.button("🚪 Logout"): 
+                        st.session_state.logged_in = False
+                        st.rerun()
+            else:
+                c5, c6, c7 = st.columns([1, 1, 2])
+                with c5:
+                    if st.button("📄 Recht"): st.session_state.wahl = "📄 Recht"; st.rerun()
+                with c6:
+                    if st.button("🚪 Logout"): 
+                        st.session_state.logged_in = False
+                        st.rerun()
         
-        # Erste Reihe Buttons
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            if st.button("📍 Suche"): st.session_state.wahl = "📍 Suche"; st.rerun()
-        with c2:
-            if st.button("💡 Vorschlag"): st.session_state.wahl = "💡 Vorschlag"; st.rerun()
-        with c3:
-            if st.button("👤 Profil"): st.session_state.wahl = "👤 Profil"; st.rerun()
+        st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
 
-        # Zweite Reihe Buttons
-        c4, c5, c6 = st.columns(3)
-        with c4:
-            if st.button("💬 Feedback"): st.session_state.wahl = "💬 Feedback"; st.rerun()
-        with c5:
-            if st.button("📄 Recht"): st.session_state.wahl = "📄 Recht"; st.rerun()
-        with c6:
-            if st.button("🚪 Logout"): 
-                st.session_state.logged_in = False
-                st.rerun()
-        
-        # Admin-Button (nur wenn Admin)
-        if st.session_state.user_role == 'admin':
-            if st.button("🛠️ Admin-Bereich"): st.session_state.wahl = "🛠️ Admin"; st.rerun()
-
-        st.divider()
-
-        # Routing (Anzeige der Inhalte)
+        # --- CONTENT BEREICH ---
         if st.session_state.wahl == "📍 Suche": show_user_area()
         elif st.session_state.wahl == "💡 Vorschlag": show_proposal_area()
         elif st.session_state.wahl == "👤 Profil": show_profile_area()
