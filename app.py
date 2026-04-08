@@ -8,14 +8,14 @@ from styles import apply_custom_css, show_header
 st.set_page_config(page_title="WuselMap", page_icon="📍", layout="wide")
 
 def main():
-    # Design und Header laden (kommt jetzt alles aus styles.py)
+    # Design und Header laden
     apply_custom_css()
     show_header()
 
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
 
-    # Automatischer Login-Check
+    # 1. AUTOMATISCHER LOGIN (Prüft die URL beim Neuladen)
     if not st.session_state.logged_in:
         user_param = st.query_params.get("user")
         if user_param:
@@ -27,7 +27,7 @@ def main():
                     st.session_state.user = user_param
                     st.session_state.user_role = match.iloc[0]['rolle']
 
-    # Login-Ansicht
+    # 2. LOGIN-ANSICHT
     if not st.session_state.logged_in:
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
@@ -35,19 +35,22 @@ def main():
             u_in = st.text_input("Nutzername").strip().lower()
             p_in = st.text_input("Passwort", type="password")
             
-            # Wir nutzen hier st.button - den Rest erledigt das CSS in styles.py
-            if st.button("Einloggen"):
+            if st.button("Anmelden", use_container_width=True, type="primary"):
                 df_n = hole_df("nutzer")
                 match = df_n[(df_n['benutzername'].str.lower() == u_in) & (df_n['passwort'] == hash_passwort(p_in))]
                 if not match.empty:
                     st.session_state.logged_in = True
                     st.session_state.user = match.iloc[0]['benutzername']
                     st.session_state.user_role = match.iloc[0]['rolle']
+                    
+                    # DIESE ZEILE HAT GEFEHLT: Schreibt den Nutzer in die URL für das Handy
+                    st.query_params["user"] = st.session_state.user
+                    
                     st.rerun()
                 else:
                     st.error("Daten nicht korrekt.")
     
-    # App-Inhalt
+    # 3. HAUPTBEREICH
     else:
         menu = ["👤 Profil", "💬 Feedback"]
         if st.session_state.user_role == 'admin':
