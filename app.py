@@ -5,14 +5,58 @@ from admin_area import show_admin_area
 
 st.set_page_config(page_title="KletterKompass", layout="wide")
 
-# CSS für das Balken-Design
+# CSS: Hier fixen wir die Farben für die Tabs (Balken)
 st.markdown("""
     <style>
+    /* Sidebar komplett weg */
     [data-testid="stSidebar"] { display: none; }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; justify-content: center; }
-    .stTabs [data-baseweb="tab"] { background-color: #f0f2f6; border-radius: 8px; padding: 10px; }
-    .stTabs [aria-selected="true"] { background-color: #2e7d32 !important; }
-    .stTabs [aria-selected="true"] p { color: white !important; }
+    
+    /* Haupt-Überschrift */
+    h1 { color: #2e7d32 !important; text-align: center; }
+
+    /* --- TABS / BALKEN DESIGN --- */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        justify-content: center;
+    }
+
+    /* 1. Inaktive Balken (Hellgrau mit dunkler Schrift) */
+    .stTabs [data-baseweb="tab"] {
+        background-color: #eeeeee; 
+        border-radius: 8px 8px 0 0;
+        padding: 10px 20px;
+        border: 1px solid #cccccc;
+    }
+    
+    /* Textfarbe für inaktive Balken (Muss dunkel sein!) */
+    .stTabs [data-baseweb="tab"] p {
+        color: #333333 !important;
+        font-weight: bold !important;
+    }
+
+    /* 2. Aktiver Balken (Dein Kletter-Grün) */
+    .stTabs [aria-selected="true"] {
+        background-color: #2e7d32 !important;
+        border-color: #2e7d32 !important;
+    }
+    
+    /* Textfarbe für aktiven Balken (Weiß) */
+    .stTabs [aria-selected="true"] p {
+        color: #ffffff !important;
+    }
+
+    /* 3. Hover-Effekt (Wenn man mit dem Finger draufkommt) */
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #e0e0e0;
+    }
+
+    /* Standard-Buttons im Rest der App auch grün machen */
+    .stButton>button {
+        background-color: #2e7d32;
+        color: white;
+        border-radius: 8px;
+        border: none;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -21,9 +65,10 @@ def main():
     if 'user_role' not in st.session_state: st.session_state.user_role = 'guest'
 
     if not st.session_state.logged_in:
-        st.title("🧗 KletterKompass Login")
-        u_in = st.text_input("Nutzername")
-        p_in = st.text_input("Passwort", type="password")
+        # --- LOGIN ---
+        st.title(f"🧗 KletterKompass Login")
+        u_in = st.text_input("Nutzername", key="login_u")
+        p_in = st.text_input("Passwort", type="password", key="login_p")
         if st.button("Anmelden", use_container_width=True):
             df_n = hole_df("nutzer")
             if not df_n.empty:
@@ -33,9 +78,9 @@ def main():
                     st.session_state.user = u_in
                     st.session_state.user_role = match.iloc[0]['rolle']
                     st.rerun()
-                else: st.error("Login falsch.")
+                else: st.error("Login-Daten falsch.")
     else:
-        # HAUPTMENÜ: Suche und Vorschlag sind hier jetzt WEG.
+        # --- HAUPTMENÜ (Balken oben) ---
         menu = ["👤 Mein Bereich", "💬 Feedback"]
         if st.session_state.user_role == 'admin':
             menu.append("🛠️ Admin")
@@ -44,7 +89,7 @@ def main():
         main_tabs = st.tabs(menu)
 
         with main_tabs[0]:
-            # Hier landen User automatisch und finden ihre Unter-Balken!
+            # Hier landen die User -> show_profile_area() hat eigene Unter-Tabs
             show_profile_area()
 
         with main_tabs[1]:
