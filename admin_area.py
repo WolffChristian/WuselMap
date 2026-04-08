@@ -22,7 +22,6 @@ def show_admin_area():
                         c_btn1, c_btn2 = st.columns(2)
                         with c_btn1:
                             if st.button(f"✅ Live schalten", key=f"app_{v_id}"):
-                                # (Geocoding & Speichern Logik bleibt gleich wie zuvor)
                                 from opencage.geocoder import OpenCageGeocode
                                 gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                                 res = gc.geocode(f"{r.get('adresse')}, {r.get('stadt')}, Deutschland")
@@ -39,6 +38,8 @@ def show_admin_area():
                     with col_img:
                         if r.get('bild_data'):
                             st.image(f"data:image/jpeg;base64,{r.get('bild_data')}", use_container_width=True)
+        else:
+            st.info("☕ Keine neuen Vorschläge vorhanden. Zeit für einen Kaffee!")
 
     with t2:
         df_f = hole_df("feedback")
@@ -53,9 +54,11 @@ def show_admin_area():
                             st.success("Erledigt!")
                             st.rerun()
         else:
-            st.write("Kein Feedback.")
+            st.info("📭 Kein neues Feedback vorhanden.")
 
     with t3:
         df_n = hole_df("nutzer")
         if not df_n.empty:
             st.table(df_n.drop(columns=['passwort'], errors='ignore'))
+        else:
+            st.warning("Keine Nutzer in der Datenbank gefunden.")
