@@ -42,7 +42,6 @@ def hole_df(tabelle="spielplaetze"):
         df = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
         if not df.empty:
             df.columns = [c.lower() for c in df.columns]
-            # Vereinheitlichung für die Anzeige
             if 'standort' in df.columns: 
                 df = df.rename(columns={'standort': 'Standort'})
         return df
@@ -102,7 +101,6 @@ def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
     except: return False
     finally: cursor.close(); conn.close()
 
-# --- NEU: Löschfunktion für erledigte Vorschläge ---
 def loesche_vorschlag(v_id):
     conn = get_db_connection()
     if not conn: return False
@@ -113,6 +111,21 @@ def loesche_vorschlag(v_id):
         return True
     except Exception as e:
         st.error(f"Fehler beim Löschen des Vorschlags: {e}")
+        return False
+    finally:
+        cursor.close(); conn.close()
+
+def loesche_feedback(f_id):
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
+    try:
+        # Löscht das Feedback anhand der ID
+        cursor.execute("DELETE FROM feedback WHERE id = %s", (f_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"Fehler beim Löschen des Feedbacks: {e}")
         return False
     finally:
         cursor.close(); conn.close()
