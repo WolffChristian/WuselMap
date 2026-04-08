@@ -4,6 +4,7 @@ import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
+from messaging import show_messaging_area # Neu: Import für Nachrichten
 
 def distanz(lat1, lon1, lat2, lon2):
     R = 6371
@@ -38,17 +39,8 @@ def show_user_area():
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
                     with col_r:
-                        # Orange Punkte auf dunkler Karte
-                        fig = px.scatter_mapbox(
-                            final, lat="lat", lon="lon", 
-                            hover_name="Standort", zoom=10, height=500,
-                            color_discrete_sequence=["#ff8c00"]
-                        )
-                        fig.update_layout(
-                            mapbox_style="carto-darkmatter", 
-                            margin={"r":0,"t":0,"l":0,"b":0}, 
-                            mapbox_center={"lat": slat, "lon": slon}
-                        )
+                        fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
+                        fig.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
                         st.plotly_chart(fig, use_container_width=True)
                 else: st.warning("Keine Spots im Umkreis gefunden.")
         else: st.error("Adresse nicht gefunden.")
@@ -67,20 +59,13 @@ def show_proposal_area():
         if st.form_submit_button("Einsenden"):
             if v_n and v_s and v_st and ds:
                 plz_final = v_p.strip()
-                
                 if not plz_final:
                     with st.spinner("PLZ wird ermittelt..."):
                         try:
                             gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-                            query = f"{v_s}, {v_st}, Deutschland"
-                            res = gc.geocode(query)
-                            if res and 'postcode' in res[0]['components']:
-                                plz_final = res[0]['components']['postcode']
-                            else:
-                                plz_final = "00000"
-                        except:
-                            plz_final = "00000"
-
+                            res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
+                            plz_final = res[0]['components'].get('postcode', "00000") if res else "00000"
+                        except: plz_final = "00000"
                 bild_data = optimiere_bild(v_img)
                 if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, "Niedersachsen", plz_final, v_st, bild_data, 1 if ds else 0):
                     st.success(f"Erfolg! Spot (PLZ {plz_final}) wird geprüft.")
@@ -88,26 +73,40 @@ def show_proposal_area():
 
 def show_profile_area():
     st.title("👤 Mein Bereich")
-    sub_tabs = st.tabs(["⚙️ Profil-Daten", "📍 Suche", "💡 Vorschlag"])
+    # Neu: Nachrichten-Tab hinzugefügt
+    sub_tabs = st.tabs(["⚙️ Profil-Daten", "📍 Suche", "💡 Vorschlag", "📩 Nachrichten"])
+    
     with sub_tabs[0]:
         df_u = hole_df("nutzer")
         user_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
+        
+        # FIX für Sabrina: Wir ermitteln den Index des gespeicherten Emojis
+        emo_liste = ["🧗", "🤸", "🦁", "🚀"]
+        aktuelles_emo = user_data.get('profil_emoji', "🧗")
+        emo_index = emo_liste.index(aktuelles_emo) if aktuelles_emo in emo_liste else 0
+
         with st.form("p_data"):
             ne = st.text_input("E-Mail", value=user_data['email'])
             nv = st.text_input("Vorname", value=user_data['vorname'])
             nn = st.text_input("Nachname", value=user_data['nachname'])
             na = st.number_input("Alter", value=int(user_data['alter_jahre']))
-            emo = st.selectbox("Profil-Emoji", ["🧗", "🤸", "🦁", "🚀"])
+            # Hier setzen wir 'index=emo_index', damit das gespeicherte Emoji vorausgewählt ist
+            emo = st.selectbox("Profil-Emoji", emo_liste, index=emo_index)
+            
             if st.form_submit_button("Speichern"):
                 aktualisiere_profil(st.session_state.user, ne, nv, nn, na, emo)
-                st.success("Daten aktualisiert!"); st.rerun()
+                st.success("Daten aktualisiert!")
+                st.rerun()
+        
         st.divider()
         if st.button("🚪 Logout", use_container_width=True):
             st.query_params.clear()
             st.session_state.logged_in = False
             st.rerun()
+
     with sub_tabs[1]: show_user_area()
     with sub_tabs[2]: show_proposal_area()
+    with sub_tabs[3]: show_messaging_area() # Neu: Aufruf des Nachrichtensystems
 
 def show_feedback_area():
     st.title("💬 Feedback")
@@ -120,15 +119,6 @@ def show_feedback_area():
 def show_legal_area():
     st.title("📄 Rechtliches & Sicherheit")
     legal_tabs = st.tabs(["⚖️ Impressum", "🔒 Datenschutz", "🛡️ Jugendschutz"])
-    
-    with legal_tabs[0]:
-        st.subheader("Impressum")
-        st.write(f"**Verantwortlich:** Christian Wolff  \n[Straße / Nr.]  \n[PLZ] Varel")
-
-    with legal_tabs[1]:
-        st.subheader("Datenschutzerklärung")
-        st.write("Infos zur TiDB Cloud Speicherung und OpenCage Nutzung.")
-
-    with legal_tabs[2]:
-        st.subheader("🛡️ Jugendschutz")
-        st.write("Keine Personen auf Fotos. Manuelle Moderation aller Spots.")
+    with legal_tabs[0]: st.write("**Verantwortlich:** Christian Wolff")
+    with legal_tabs[1]: st.write("Datenschutz-Infos...")
+    with legal_tabs[2]: st.write("Jugendschutz-Infos...")
