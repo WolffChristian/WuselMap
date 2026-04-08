@@ -3,72 +3,79 @@ import streamlit as st
 def apply_custom_css():
     st.markdown("""
         <style>
-        /* 1. Hintergrund & Sidebar */
+        /* 1. HINTERGRUND (Dunkelblau/Schwarz-Mix) */
         [data-testid="stSidebar"] { display: none; }
-        .stApp { background-color: #ffffff; }
-
-        /* 2. Überschriften (Midnight Blue) */
-        h1, h2, h3, p { color: #003366; }
         
-        /* 3. Tabs Branding */
+        /* Die gesamte App bekommt den dunklen Boden */
+        .stApp { 
+            background-color: #001a33 !important; 
+        }
+
+        /* 2. TEXT-FARBEN (Auf Weiß/Hellgrau umstellen) */
+        h1, h2, h3 { 
+            color: #ffffff !important; 
+            text-align: center; 
+            font-weight: 800; 
+        }
+        
+        /* Normaler Text, Labels und Captions auf Weiß */
+        p, span, label, .stMarkdown { 
+            color: #e0e0e0 !important; 
+        }
+
+        /* 3. TABS (Für dunklen Hintergrund optimiert) */
         .stTabs [data-baseweb="tab-list"] { gap: 10px; justify-content: center; }
         .stTabs [data-baseweb="tab"] { 
-            background-color: #f0f2f6; 
+            background-color: #003366; /* Etwas helleres Blau als der Boden */
             border-radius: 8px; 
-            border: 1px solid #dee2e6;
+            border: 1px solid #004a99;
             padding: 5px 20px;
         }
         .stTabs [aria-selected="true"] { 
             background-color: #ff8c00 !important; 
             color: white !important;
+            border: none !important;
         }
+        /* Inaktiver Tab-Text */
+        .stTabs [data-baseweb="tab"] p { color: #bbbbbb !important; }
 
-        /* 4. DER BUTTON-FIX (Erzwungenes Blau) */
-        /* Wir greifen jeden Button-Typ ab, den Streamlit generiert */
-        div.stButton > button, 
-        div.stBaseButton-secondary > button,
-        div.stBaseButton-primary > button {
-            background-color: #003366 !important;
+        /* 4. BUTTONS (Bleiben kräftig Blau, Hover Orange) */
+        div.stButton > button {
+            background-color: #004a99 !important; /* Kräftiges Blau */
             color: white !important;
-            border: 2px solid #003366 !important;
+            border: 1px solid #005fcc !important;
             border-radius: 10px !important;
             padding: 0.6rem 1.2rem !important;
             font-weight: bold !important;
             width: 100% !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-            display: inline-flex !important;
-            justify-content: center !important;
-            align-items: center !important;
+            transition: all 0.3s ease !important;
         }
 
-        /* Hover-Zustand (Orange) */
         div.stButton > button:hover {
             background-color: #ff8c00 !important;
             border-color: #ff8c00 !important;
-            color: white !important;
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+            box-shadow: 0 4px 15px rgba(255, 140, 0, 0.3) !important;
         }
 
-        /* Verhindert, dass der Button beim Klicken wieder weiß/grau wird */
-        div.stButton > button:focus, 
-        div.stButton > button:active {
-            background-color: #003366 !important;
-            color: white !important;
-        }
-
-        /* 5. Eingabefelder */
+        /* 5. EINGABEFELDER (Dunkler Look) */
         .stTextInput input {
-            border: 1px solid #003366 !important;
+            background-color: #002b55 !important;
+            color: white !important;
+            border: 1px solid #004a99 !important;
             border-radius: 8px !important;
         }
+        
+        /* Divider Farbe anpassen */
+        hr { border-color: #003366 !important; }
+
         </style>
     """, unsafe_allow_html=True)
 
 def show_header():
-    # Zentrierter Header mit dem Bild aus dem assets-Ordner
+    # Header bleibt wie gehabt, das Bild kommt aus assets
     c1, c2, c3 = st.columns([1, 4, 1])
-    with c2:
+    with col2:
         try:
             st.image("assets/Kopf_seite.png", use_container_width=True)
         except:
