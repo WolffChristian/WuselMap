@@ -12,62 +12,49 @@ def distanz(lat1, lon1, lat2, lon2):
 
 def show_user_area():
     st.markdown("### 📍 Spots finden")
-    adr = st.text_input("Ort eingeben", "Varel")
-    km = st.slider("Umkreis (km)", 1, 50, 20)
+    adr = st.text_input("Ort", "Varel")
     if st.button("🔍 Karte laden"):
         st.info("Suche läuft...")
-        # Hier deine Plotly-Logik einfügen
 
 def show_proposal_area():
     st.markdown("### 💡 Spot melden")
     with st.form("v_form", clear_on_submit=True):
-        v_n = st.text_input("Name des Spots*")
-        v_s = st.text_input("Straße & Nr.*")
-        v_st = st.text_input("Stadt*", value="Varel")
-        v_img = st.file_uploader("Foto hochladen", type=["jpg", "png", "jpeg"])
-        if st.form_submit_button("Vorschlag einsenden"):
+        v_n = st.text_input("Name*")
+        v_s = st.text_input("Straße*")
+        v_img = st.file_uploader("Foto", type=["jpg", "png", "jpeg"])
+        if st.form_submit_button("Einsenden"):
             if v_n and v_s:
-                img_data = optimiere_bild(v_img)
-                sende_vorschlag(v_n, v_s, "Alle", st.session_state.user, "Niedersachsen", "26316", v_st, img_data, True)
-                st.success("Danke! Spot wurde zur Prüfung gesendet.")
+                sende_vorschlag(v_n, v_s, "Alle", st.session_state.user, "Niedersachsen", "26316", "Varel", optimiere_bild(v_img), True)
+                st.success("Erfolg!")
 
 def show_profile_area():
     st.title("👤 Mein Bereich")
-    
-    # UNTER-KATEGORIEN IM PROFIL (Slider/Tabs)
-    sub_tabs = st.tabs(["⚙️ Profil-Daten", "📍 Suche", "💡 Vorschlag"])
+    # UNTER-KATEGORIEN (Slider)
+    sub_tabs = st.tabs(["⚙️ Daten", "📍 Suche", "💡 Vorschlag"])
     
     with sub_tabs[0]:
         df_u = hole_df("nutzer")
         if not df_u.empty:
             user_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
             with st.form("p_data"):
-                ne = st.text_input("E-Mail", value=user_data['email'])
-                nv = st.text_input("Vorname", value=user_data['vorname'])
-                nn = st.text_input("Nachname", value=user_data['nachname'])
-                if st.form_submit_button("Änderungen speichern"):
-                    aktualisiere_profil(st.session_state.user, ne, nv, nn, user_data['alter_jahre'], "🧗")
-                    st.success("Gespeichert!"); st.rerun()
-        
+                nv = st.text_input("Vorname", value=user_data.get('vorname', ''))
+                nn = st.text_input("Nachname", value=user_data.get('nachname', ''))
+                if st.form_submit_button("Speichern"):
+                    aktualisiere_profil(st.session_state.user, user_data['email'], nv, nn, user_data['alter_jahre'], "🧗")
+                    st.success("Update!"); st.rerun()
         st.divider()
-        if st.button("🚪 Abmelden / Logout", use_container_width=True):
-            st.session_state.logged_in = False
-            st.rerun()
+        if st.button("🚪 Logout", use_container_width=True):
+            st.session_state.logged_in = False; st.rerun()
 
-    with sub_tabs[1]:
-        show_user_area()
-
-    with sub_tabs[2]:
-        show_proposal_area()
+    with sub_tabs[1]: show_user_area()
+    with sub_tabs[2]: show_proposal_area()
 
 def show_feedback_area():
     st.title("💬 Feedback")
-    msg = st.text_area("Deine Nachricht an uns")
+    msg = st.text_area("Nachricht")
     if st.button("Senden"):
-        if sende_feedback(st.session_state.user, msg):
-            st.success("Danke für dein Feedback!")
+        if sende_feedback(st.session_state.user, msg): st.success("Danke!")
 
 def show_legal_area():
-    st.title("📄 Rechtliches")
-    st.write("**Impressum**")
-    st.write("Christian Wolff, Varel")
+    st.title("📄 Recht")
+    st.write("Impressum Christian Wolff")
