@@ -1,5 +1,6 @@
 import streamlit as st
-from database_manager import hole_df, speichere_spielplatz, loesche_vorschlag # loesche_vorschlag importiert
+from database_manager import hole_df, speichere_spielplatz, loesche_vorschlag
+from opencage.geocoder import OpenCageGeocode
 
 def show_admin_area():
     st.title("🛠️ Admin-Bereich")
@@ -28,55 +29,50 @@ def show_admin_area():
                     with col_text:
                         st.write(f"**Stadt:** {stadt_spot}")
                         st.write(f"**Adresse:** {adresse_spot}")
-                        st.write(f"**PLZ:** {plz_spot}")
-                        st.write(f"**Altersgruppe:** {alter_spot}")
                         st.divider()
                         
                         if st.button(f"✅ Spot live schalten", key=f"v_{v_id}"):
-                            with st.spinner("Geocoding & Speichern..."):
-                                from opencage.geocoder import OpenCageGeocode
-                                gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-                                query = f"{adresse_spot}, {plz_spot} {stadt_spot}, Deutschland"
-                                res = gc.geocode(query)
-                                
-                                if res:
-                                    lat = res[0]['geometry']['lat']
-                                    lon = res[0]['geometry']['lng']
+                            # --- DOPPEL-CHECK LOGIK ---
+                            df_check = hole_df("spielplaetze")
+                            # Prüfen ob Name UND Stadt schon existieren
+                            existiert_bereits = not df_check[
+                                (df_check['Standort'].str.lower() == name_spot.lower()) & 
+                                (df_check['stadt'].str.lower() == stadt_spot.lower())
+                            ].empty
+                            
+                            if existiert_bereits:
+                                st.warning("⚠️ Dieser Spot existiert bereits in der Datenbank!")
+                                # Wir löschen den Vorschlag trotzdem, damit er aus der Admin-Liste verschwindet
+                                if loesche_vorschlag(v_id):
+                                    st.info("Der doppelte Vorschlag wurde aus der Liste entfernt.")
+                                    st.rerun()
+                            else:
+                                with st.spinner("Wird verarbeitet..."):
+                                    gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+                                    query = f"{adresse_spot}, {plz_spot} {stadt_spot}, Deutschland"
+                                    res = gc.geocode(query)
                                     
-                                    # 1. Schritt: In Haupttabelle speichern
-                                    erfolg_save = speichere_spielplatz(
-                                        name_spot, lat, lon, alter_spot, 
-                                        "Niedersachsen", plz_spot, stadt_spot, 
-                                        bild_data, r.get('foto_datenschutz', 1)
-                                    )
-                                    
-                                    if erfolg_save:
-                                        # 2. Schritt: Aus Vorschlägen löschen
-                                        if loesche_vorschlag(v_id):
-                                            st.success(f"'{name_spot}' ist live und Vorschlag wurde archiviert!")
-                                            st.rerun() # Seite neu laden -> Vorschlag ist weg
-                                        else:
-                                            st.warning("Spot ist live, aber Vorschlag konnte nicht gelöscht werden.")
+                                    if res:
+                                        lat, lon = res[0]['geometry']['lat'], res[0]['geometry']['lng']
+                                        
+                                        if speichere_spielplatz(name_spot, lat, lon, alter_spot, "Niedersachsen", plz_spot, stadt_spot, bild_data, r.get('foto_datenschutz', 1)):
+                                            loesche_vorschlag(v_id)
+                                            st.success(f"'{name_spot}' ist jetzt live!")
+                                            st.rerun()
                                     else:
-                                        st.error("Fehler beim Speichern.")
-                                else:
-                                    st.error("Adresse nicht gefunden.")
+                                        st.error("Adresse nicht gefunden.")
 
                     with col_img:
                         if bild_data:
                             st.image(f"data:image/jpeg;base64,{bild_data}", use_container_width=True)
-                        else:
-                            st.warning("Kein Foto.")
-        else:
-            st.write("Keine neuen Vorschläge vorhanden.")
 
+        else:
+            st.write("Keine neuen Vorschläge.")
+
+    # Rest bleibt gleich (Feedback & Nutzer)
     with t2:
         df_f = hole_df("feedback")
         if not df_f.empty: st.table(df_f)
-        else: st.write("Kein Feedback.")
-
     with t3:
         df_n = hole_df("nutzer")
-        if not df_n.empty:
-            st.table(df_n.drop(columns=['passwort'], errors='ignore'))
-        else: st.write("Keine Nutzer.")
+        if not df_n.empty: st.table(df_n.drop(columns=['passwort'], errors='ignore'))
