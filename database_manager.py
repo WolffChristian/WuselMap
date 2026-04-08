@@ -66,18 +66,19 @@ def aktualisiere_profil(un, em, vn, nn, al, emo):
 
 def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     conn = get_db_connection()
-    if conn is None: return False
+    if not conn: return False
     cursor = conn.cursor()
-    # KORREKTUR: 'standort' statt 'name' und 'altersfreigabe' statt 'alter_gruppe'
+    # KORREKTUR: 'eingereicht_von' wurde entfernt, da die Spalte in deiner DB fehlt
     sql = """INSERT INTO vorschlaege 
-             (standort, adresse, altersfreigabe, eingereicht_von, bundesland, plz, stadt, bild_data, foto_datenschutz) 
-             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+             (standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) 
+             VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"""
     try:
-        cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
+        # Hier auch das 'us' (User) aus den Werten entfernt
+        cursor.execute(sql, (n, ad, al, bund, plz, stadt, bild, ds))
         conn.commit()
         return True
     except Exception as e:
-        st.error(f"Fehler beim Speichern: {e}") # Zeigt uns jetzt den echten Fehler!
+        st.error(f"Fehler beim Speichern: {e}")
         return False
     finally:
         cursor.close(); conn.close()
