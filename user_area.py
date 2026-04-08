@@ -93,27 +93,53 @@ def show_feedback_area():
             if msg and sende_feedback(st.session_state.user, msg):
                 st.success("Vielen Dank!"); st.rerun()
 
-# --- HIER SIND DIE RECHTLICHEN VERKNÜPFUNGEN ---
+# --- RECHTS-BEREICH: VOLLSTÄNDIG AUSGEARBEITET ---
 def show_legal_area():
-    st.title("📄 Rechtliches")
-    
-    # Unter-Tabs für Impressum und Datenschutz
-    legal_tabs = st.tabs(["⚖️ Impressum", "🔒 Datenschutz"])
+    st.title("📄 Rechtliches & Sicherheit")
+    legal_tabs = st.tabs(["⚖️ Impressum", "🔒 Datenschutz", "🛡️ Jugendschutz"])
     
     with legal_tabs[0]:
         st.subheader("Impressum")
         st.write("""
-        **Angaben gemäß § 5 TMG:** Christian Wolff  
-        [Deine Straße]  
+        **Verantwortlich für den Inhalt nach § 5 TMG:** Christian Wolff  
+        [Deine Straße / Nr.]  
         [Deine PLZ] Varel  
         
-        **Kontakt:** E-Mail: [Deine E-Mail]  
+        **Kontakt:** E-Mail: [Deine E-Mail Adresse]  
+        Telefon: [Deine Telefonnummer, falls gewünscht]  
+        
+        **Haftungsausschluss:** Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für die Inhalte externer Links. Für den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.
         """)
 
     with legal_tabs[1]:
-        st.subheader("Datenschutzerklärung")
+        st.subheader("Datenschutzerklärung (DSGVO)")
+        st.info("Ihre Daten sind bei uns sicher. Wir verkaufen keine Daten an Dritte.")
         st.write("""
-        **1. Datenschutz auf einen Blick** Wir nehmen den Schutz Ihrer persönlichen Daten sehr ernst...
+        **1. Verantwortliche Stelle** Verantwortlich für die Datenverarbeitung in dieser App ist Christian Wolff (Kontaktdaten siehe Impressum).
         
-        **2. Datenerfassung in dieser App** Die Datenverarbeitung erfolgt durch den Betreiber dieser Anwendung. Die Daten werden zur Bereitstellung der Funktionen (Suche, Profil, Vorschläge) genutzt.
+        **2. Erhebung und Speicherung personenbezogener Daten** Bei der Nutzung dieser App werden folgende Daten erhoben:  
+        * **Registrierungsdaten:** Benutzername, E-Mail, Name, Alter (zur Bereitstellung des Profils).  
+        * **Standortdaten:** Wir nutzen Geodaten über den Dienst *OpenCage*, um Ihnen Kletterspots in der Nähe anzuzeigen. Ihr genauer Standort wird nicht dauerhaft gespeichert.  
+        * **Inhalte:** Von Ihnen hochgeladene Fotos von Spots werden in unserer Datenbank (TiDB Cloud) gespeichert.
+        
+        **3. Zweck der Verarbeitung** Die Verarbeitung erfolgt gemäß Art. 6 Abs. 1 lit. b DSGVO zur Erfüllung des Nutzungsvertrags (Bereitstellung der App-Funktionen).
+        
+        **4. Rechte der Nutzer** Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17) und Datenübertragbarkeit (Art. 20). Kontaktieren Sie uns hierzu einfach per E-Mail.
+        
+        **5. Datensicherheit** Unsere Datenbank ist verschlüsselt und der Zugriff ist auf den Administrator beschränkt. Fotos werden vor der Speicherung optimiert und anonymisiert.
+        """)
+
+    with legal_tabs[2]:
+        st.subheader("🛡️ Jugend- und Medienschutz")
+        st.warning("Wichtiger Hinweis für Eltern und Jugendliche")
+        st.write("""
+        **1. Schutz von Minderjährigen (JuSchG & JMStV)** Die Sicherheit von Kindern steht bei KletterKompass an oberster Stelle. Wir halten uns strikt an die Vorgaben des Jugendschutzgesetzes.
+        
+        **2. Altersfreigaben** Diese App dient der Information über öffentliche Plätze. Wir erfassen das Alter der Nutzer, um sicherzustellen, dass jugendschutzrelevante Inhalte (z.B. Feedback-Funktionen) verantwortungsvoll genutzt werden.
+        
+        **3. Bildrechte & Schutz der Privatsphäre** Beim Hochladen von Spot-Vorschlägen gilt: **Es dürfen keine Personen, insbesondere keine Kinder, auf den Fotos erkennbar sein.** Verstöße gegen diese Regel führen zur sofortigen Löschung des Beitrags und können zum Ausschluss aus der App führen.
+        
+        **4. Moderation** Alle eingereichten Vorschläge und Feedbacks werden manuell durch den Administrator geprüft, bevor sie für andere Nutzer sichtbar werden. So verhindern wir ungeeignete Inhalte oder unangemessene Sprache.
+        
+        **5. Ansprechpartner für Jugendschutz** Sollten Sie Inhalte entdecken, die Sie als gefährdend empfinden, melden Sie diese bitte sofort über die Feedback-Funktion oder per E-Mail.
         """)
