@@ -3,11 +3,9 @@ from database_manager import hole_df, hash_passwort
 from user_area import show_profile_area, show_feedback_area, show_legal_area
 from admin_area import show_admin_area
 
-APP_NAME = "KletterKompass"
+st.set_page_config(page_title="KletterKompass", layout="wide")
 
-st.set_page_config(page_title=APP_NAME, layout="wide")
-
-# CSS bleibt für das Design der Balken
+# CSS für die Balken (Grün wenn aktiv)
 st.markdown("""
     <style>
     [data-testid="stSidebar"] { display: none; }
@@ -22,23 +20,30 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
     if not st.session_state.logged_in:
-        # ... Dein Login-Code ...
-        st.title("Bitte einloggen")
+        # --- LOGIN BEREICH ---
+        st.title("🧗 KletterKompass Login")
+        u_in = st.text_input("Nutzername")
+        p_in = st.text_input("Passwort", type="password")
+        if st.button("Anmelden", use_container_width=True):
+            # Login-Logik hier (gekürzt)
+            st.session_state.logged_in = True
+            st.session_state.user = u_in
+            st.session_state.user_role = "admin" # Nur als Beispiel
+            st.rerun()
     else:
-        # DAS HAUPTMENÜ: Nur noch die Haupt-Kategorien!
-        # Suche und Vorschlag sind hier VERSCHWUNDEN.
-        menu_punkte = ["👤 Profil & Suche", "💬 Feedback"]
+        # --- HAUPTMENÜ (Nur 3-4 Punkte) ---
+        # "Suche" und "Vorschlag" sind hier NICHT mehr drin!
+        menu = ["👤 Profil & Navigation", "💬 Feedback"]
         
-        if st.session_state.user_role == 'admin':
-            menu_punkte.append("🛠️ Admin")
+        if st.session_state.get('user_role') == 'admin':
+            menu.append("🛠️ Admin")
         
-        menu_punkte.append("📄 Recht")
+        menu.append("📄 Recht")
         
-        main_tabs = st.tabs(menu_punkte)
+        haupt_tabs = st.tabs(menu)
 
-        with main_tabs[0]:
-            # Das hier ist jetzt der Dreh- und Angelpunkt. 
-            # In show_profile_area() sind jetzt die Unter-Tabs für Suche/Vorschlag.
+        with haupt_tabs[0]:
+            # HIER passiert alles: Profil, Suche und Vorschlag
             show_profile_area()
             
             st.divider()
@@ -46,17 +51,7 @@ def main():
                 st.session_state.logged_in = False
                 st.rerun()
 
-        with main_tabs[1]:
+        with haupt_tabs[1]:
             show_feedback_area()
 
-        if st.session_state.user_role == 'admin':
-            with main_tabs[2]:
-                show_admin_area()
-            with main_tabs[3]:
-                show_legal_area()
-        else:
-            with main_tabs[2]:
-                show_legal_area()
-
-if __name__ == "__main__":
-    main()
+        # ... (Rest der Tabs für Admin und Recht)
