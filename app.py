@@ -5,44 +5,49 @@ from admin_area import show_admin_area
 
 APP_NAME = "KletterKompass"
 
-# 1. Konfiguration & Design
+# 1. Konfiguration
 st.set_page_config(page_title=APP_NAME, layout="wide")
 
-# CSS: Sidebar komplett weg & Tabs für das Handy optimieren
+# 2. CSS: Alles für den Admin-Look (Balken-Design)
 st.markdown("""
     <style>
-    /* Sidebar komplett ausblenden */
+    /* Sidebar komplett weg */
     [data-testid="stSidebar"] { display: none; }
     
-    /* Haupt-Überschrift Design */
-    h1 { color: #2e7d32 !important; font-size: 24px !important; text-align: center; }
-
-    /* Tabs (Deine Auswahlbalken) schick machen */
+    /* Die Tabs (deine Balken) stylen */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        justify-content: center; /* Zentriert die Balken */
+        gap: 5px;
+        justify-content: center;
     }
     
     .stTabs [data-baseweb="tab"] {
-        background-color: #f0f2f6; /* Inaktive Balken: Hellgrau */
+        background-color: #f0f2f6; /* Inaktiv: hellgrau */
         border-radius: 8px 8px 0 0;
-        padding: 10px 15px;
+        padding: 8px 12px;
         border: 1px solid #d1d5db;
     }
 
-    /* Textfarbe in den Balken (Dunkel & Lesbar) */
+    /* Text in den Balken */
     .stTabs [data-baseweb="tab"] p {
-        color: #31333f !important;
-        font-weight: 600 !important;
         font-size: 14px;
+        font-weight: 600;
+        color: #31333f !important;
     }
 
-    /* Der aktive Balken (Dein Kletter-Grün) */
+    /* Aktiver Balken (Kletter-Grün) */
     .stTabs [aria-selected="true"] {
         background-color: #2e7d32 !important;
+        border-color: #2e7d32 !important;
     }
     .stTabs [aria-selected="true"] p {
-        color: white !important; /* Weißer Text auf grünem Grund */
+        color: white !important;
+    }
+
+    /* Buttons innerhalb der Bereiche */
+    .stButton>button {
+        background-color: #2e7d32;
+        color: white;
+        border-radius: 8px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -51,9 +56,9 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state.logged_in = False
     if 'user_role' not in st.session_state: st.session_state.user_role = 'guest'
 
-    # --- 🔐 LOGIN / REGISTRIERUNG ---
+    # --- LOGIN / REGISTRIERUNG ---
     if not st.session_state.logged_in:
-        st.title(f"🧗 {APP_NAME}")
+        st.title(f"🧗 {APP_NAME} Login")
         t_log, t_reg = st.tabs(["🔐 Login", "📝 Registrieren"])
         
         with t_log:
@@ -70,25 +75,25 @@ def main():
                         st.rerun()
                     else: st.error("Login falsch.")
         with t_reg:
-            st.info("Hier kannst du dich neu anmelden.")
-            # ... Dein Registrierungs-Code bleibt hier ...
+            st.subheader("Konto erstellen")
+            # ... (Dein Registrierungs-Code hier)
 
-    # --- 👤 DAS ZENTRALE DASHBOARD (NACH LOGIN) ---
+    # --- DAS DASHBOARD (LANDING PAGE) ---
     else:
         st.title(f"🧗 {APP_NAME}")
         
-        # Wir bauen die Balken-Auswahl (Tabs) direkt in die Seite
-        # Wir packen alles Wichtige in die Liste
-        reiter = ["👤 Mein Profil", "📍 Suche", "💡 Vorschlag", "💬 Feedback"]
+        # Die Auswahlbalken wie in deinem Admin-Bild
+        # "Mein Profil" ist an Stelle 1 -> also landet man automatisch dort!
+        reiter_namen = ["👤 Mein Profil", "📍 Suche", "💡 Vorschlag", "💬 Feedback"]
         
-        # Nur für dich als Admin kommt der Admin-Balken dazu
+        # Admin-Zusatz
         if st.session_state.user_role == 'admin':
-            reiter.append("🛠️ Admin")
-        
-        reiter.append("📄 Recht")
+            reiter_namen.append("🛠️ Admin-Bereich")
+            
+        reiter_namen.append("📄 Recht")
 
-        # Hier entstehen die "Balken" wie im Adminbereich
-        tabs = st.tabs(reiter)
+        # Hier werden die Tabs (Balken) erstellt
+        tabs = st.tabs(reiter_namen)
 
         with tabs[0]: # 👤 Mein Profil
             show_profile_area()
@@ -106,9 +111,8 @@ def main():
         with tabs[3]: # 💬 Feedback
             show_feedback_area()
 
-        # Check für Admin-Tab (falls vorhanden)
         if st.session_state.user_role == 'admin':
-            with tabs[4]: # 🛠️ Admin
+            with tabs[4]: # 🛠️ Admin-Bereich
                 show_admin_area()
             with tabs[5]: # 📄 Recht
                 show_legal_area()
