@@ -67,18 +67,24 @@ def main():
     if not st.session_state.logged_in:
         # --- LOGIN ---
         st.title(f"🧗 KletterKompass Login")
-        u_in = st.text_input("Nutzername", key="login_u")
+       # --- LOGIN BEREICH ---
+        u_in = st.text_input("Nutzername", key="login_u").strip().lower() # FIX: strip & lower
         p_in = st.text_input("Passwort", type="password", key="login_p")
+        
         if st.button("Anmelden", use_container_width=True):
             df_n = hole_df("nutzer")
             if not df_n.empty:
+                # Wir vergleichen jetzt den gesäuberten Namen
+                # Passwort wird in hash_passwort() bereits mit .strip() behandelt
                 match = df_n[(df_n['benutzername'] == u_in) & (df_n['passwort'] == hash_passwort(p_in))]
+                
                 if not match.empty:
                     st.session_state.logged_in = True
-                    st.session_state.user = u_in
+                    st.session_state.user = match.iloc[0]['benutzername']
                     st.session_state.user_role = match.iloc[0]['rolle']
                     st.rerun()
-                else: st.error("Login-Daten falsch.")
+                else:
+                    st.error("Login-Daten falsch. Prüfe Groß-/Kleinschreibung beim Passwort!")
     else:
         # --- HAUPTMENÜ (Balken oben) ---
         menu = ["👤 Mein Bereich", "💬 Feedback"]
