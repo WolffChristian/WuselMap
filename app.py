@@ -4,7 +4,9 @@ from user_area import show_profile_area, show_feedback_area, show_legal_area
 from admin_area import show_admin_area
 from styles import apply_custom_css, show_header
 
-st.set_page_config(page_title="WuselMap", page_icon="🦊", layout="wide")
+# --- KORREKTUR HIER ---
+# page_icon geändert von "🦊" auf "📍"
+st.set_page_config(page_title="WuselMap", page_icon="📍", layout="wide")
 
 def main():
     apply_custom_css()
@@ -13,6 +15,7 @@ def main():
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
 
+    # (Rest der app.py bleibt unverändert wie im letzten Paket)
     if not st.session_state.logged_in:
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
