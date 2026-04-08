@@ -129,3 +129,20 @@ def loesche_feedback(f_id):
         return False
     finally:
         cursor.close(); conn.close()
+
+def sende_nachricht(von, an, text):
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = "INSERT INTO nachrichten (von_nutzer, an_nutzer, nachricht) VALUES (%s, %s, %s)"
+    try:
+        cursor.execute(sql, (von, an, text))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def hole_nachrichten(nutzername):
+    conn = get_db_connection()
+    if conn is None: return pd.DataFrame()
+    try:
+        # Holt Nachrichten, die AN den Nutzer gehen
+        return pd.read_sql(f"SELECT * FROM nachrichten WHERE an_nutzer = '{nutzername}' ORDER BY zeitpunkt DESC", conn)
+    finally: conn.close()
