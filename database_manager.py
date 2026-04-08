@@ -26,11 +26,14 @@ def hash_passwort(pw):
 
 def optimiere_bild(bild_file):
     if bild_file is None: return None
-    img = Image.open(bild_file)
-    img.thumbnail((800, 800))
-    buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=70)
-    return base64.b64encode(buffer.getvalue()).decode()
+    try:
+        img = Image.open(bild_file)
+        if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+        img.thumbnail((800, 800))
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=70)
+        return base64.b64encode(buffer.getvalue()).decode()
+    except: return None
 
 def hole_df(tabelle="spielplaetze"):
     conn = get_db_connection()
@@ -64,13 +67,24 @@ def aktualisiere_profil(un, em, vn, nn, al, emo):
 def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-    cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
-    conn.commit(); conn.close()
+    try:
+        cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
+        conn.commit()
+    finally: cursor.close(); conn.close()
 
 def sende_feedback(us, ms):
     conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
     try:
         cursor.execute(sql, (us, ms)); conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = "INSERT INTO spielplaetze (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    try:
+        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
+        conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
