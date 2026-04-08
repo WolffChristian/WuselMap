@@ -4,7 +4,8 @@ from opencage.geocoder import OpenCageGeocode
 
 def show_admin_area():
     st.title("🛠️ Admin-Bereich")
-    # Ab hier muss alles mit 4 Leerzeichen oder einem Tab eingerückt sein!
+    
+    # Die Tabs müssen eingerückt sein (4 Leerzeichen)
     t1, t2, t3 = st.tabs(["📥 Vorschläge", "💬 Feedback", "👥 Nutzer"])
     
     with t1:
@@ -12,7 +13,6 @@ def show_admin_area():
         if not df_v.empty:
             for i, r in df_v.iterrows():
                 with st.container(border=True):
-                    # Wir nutzen hier schon die korrigierten Spaltennamen von vorhin!
                     st.write(f"**{r['standort']}** in {r['stadt']}")
                     if st.button(f"✅ Freigeben: {r['standort']}", key=f"v_{r['id']}"):
                         gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
@@ -27,7 +27,7 @@ def show_admin_area():
                                 r['plz'], 
                                 r['stadt'], 
                                 r['bild_data'], 
-                                r.get('foto_datenschutz', True)
+                                r.get('foto_datenschutz', 1)
                             )
                             st.success("Spot live!")
                             st.rerun()
@@ -37,15 +37,15 @@ def show_admin_area():
     with t2:
         df_f = hole_df("feedback")
         if not df_f.empty:
-            st.dataframe(df_f, use_container_width=True)
+            st.table(df_f) # Auch hier auf st.table umgestellt für den Dark Mode
         else:
             st.write("Kein Feedback.")
 
-   with t3:
+    with t3:
+        # HIER WAR DER FEHLER: Alles unter 'with t3:' muss sauber eingerückt sein
         df_n = hole_df("nutzer")
         if not df_n.empty:
-            # KORREKTUR: st.table statt st.dataframe
-            # st.table erzeugt eine saubere HTML-Tabelle, die unser CSS in styles.py versteht!
+            # st.table statt st.dataframe für die dunkle Optik
             st.table(df_n.drop(columns=['passwort'], errors='ignore'))
         else:
             st.write("Keine Nutzer registriert.")
