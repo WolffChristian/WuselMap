@@ -41,7 +41,8 @@ def show_user_area():
                         fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500)
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
                         st.plotly_chart(fig, use_container_width=True)
-                else: st.warning("Nichts im Umkreis gefunden.")
+                else: st.warning("Keine Spots im Umkreis gefunden.")
+        else: st.error("Adresse nicht gefunden.")
 
 def show_proposal_area():
     st.subheader("💡 Spot vorschlagen")
@@ -58,7 +59,7 @@ def show_proposal_area():
             if v_n and v_s and v_p and v_st and ds:
                 bild_data = optimiere_bild(v_img)
                 if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, "Niedersachsen", v_p, v_st, bild_data, ds):
-                    st.success("Danke! Christian prüft den Spot.")
+                    st.success("Erfolg! Spot wird geprüft.")
             else: st.warning("Pflichtfelder (*) ausfüllen!")
 
 def show_profile_area():
@@ -75,7 +76,7 @@ def show_profile_area():
             emo = st.selectbox("Profil-Emoji", ["🧗", "🤸", "🦁", "🚀"])
             if st.form_submit_button("Speichern"):
                 aktualisiere_profil(st.session_state.user, ne, nv, nn, na, emo)
-                st.success("Gespeichert!"); st.rerun()
+                st.success("Daten aktualisiert!"); st.rerun()
         st.divider()
         if st.button("🚪 Logout", use_container_width=True):
             st.query_params.clear()
@@ -90,8 +91,29 @@ def show_feedback_area():
         msg = st.text_area("Deine Nachricht")
         if st.form_submit_button("Absenden"):
             if msg and sende_feedback(st.session_state.user, msg):
-                st.success("Danke für dein Feedback!"); st.rerun()
+                st.success("Vielen Dank!"); st.rerun()
 
+# --- HIER SIND DIE RECHTLICHEN VERKNÜPFUNGEN ---
 def show_legal_area():
     st.title("📄 Rechtliches")
-    st.write("**Impressum** Christian Wolff, Varel")
+    
+    # Unter-Tabs für Impressum und Datenschutz
+    legal_tabs = st.tabs(["⚖️ Impressum", "🔒 Datenschutz"])
+    
+    with legal_tabs[0]:
+        st.subheader("Impressum")
+        st.write("""
+        **Angaben gemäß § 5 TMG:** Christian Wolff  
+        [Deine Straße]  
+        [Deine PLZ] Varel  
+        
+        **Kontakt:** E-Mail: [Deine E-Mail]  
+        """)
+
+    with legal_tabs[1]:
+        st.subheader("Datenschutzerklärung")
+        st.write("""
+        **1. Datenschutz auf einen Blick** Wir nehmen den Schutz Ihrer persönlichen Daten sehr ernst...
+        
+        **2. Datenerfassung in dieser App** Die Datenverarbeitung erfolgt durch den Betreiber dieser Anwendung. Die Daten werden zur Bereitstellung der Funktionen (Suche, Profil, Vorschläge) genutzt.
+        """)
