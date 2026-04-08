@@ -19,7 +19,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def main():
-    # REFRESH-SCHUTZ: Prüfen ob User in URL gespeichert ist
+    # REFRESH-SCHUTZ: Aus URL lesen
     if 'logged_in' not in st.session_state:
         saved_user = st.query_params.get("user")
         if saved_user:
@@ -43,10 +43,9 @@ def main():
                 st.session_state.logged_in = True
                 st.session_state.user = match.iloc[0]['benutzername']
                 st.session_state.user_role = match.iloc[0]['rolle']
-                # LOGIN IN URL SPEICHERN (Refresh-Schutz)
                 st.query_params["user"] = st.session_state.user
                 st.rerun()
-            else: st.error("Daten falsch.")
+            else: st.error("Login falsch.")
     else:
         menu = ["👤 Mein Bereich", "💬 Feedback"]
         if st.session_state.user_role == 'admin': menu.append("🛠️ Admin")
