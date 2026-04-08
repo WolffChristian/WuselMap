@@ -1,20 +1,36 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
-# Importiert alles Nötige aus deinen anderen Dateien
 from database_manager import hole_df, hash_passwort, registriere_nutzer
 from user_area import show_user_area, show_proposal_area, show_profile_area, show_feedback_area, show_legal_area
 from admin_area import show_admin_area
 
 APP_NAME = "KletterKompass"
 
-# Sidebar einklappen für Handy-Optimierung
+# 1. Konfiguration
 st.set_page_config(
     page_title=APP_NAME, 
     layout="wide", 
     initial_sidebar_state="collapsed"
 )
 
-# Dein grünes Kletter-Design
+# 2. DER ZAUBERTRICK: JavaScript zum automatischen Schließen der Sidebar
+def close_sidebar_mobile():
+    components.html(
+        """
+        <script>
+        var buttons = window.parent.document.getElementsByTagName("button");
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].getAttribute("aria-label") === "Close sidebar") {
+                buttons[i].click();
+            }
+        }
+        </script>
+        """,
+        height=0,
+    )
+
+# 3. Styling (Dein grünes Design)
 st.markdown("""
     <style>
     h1, h2, h3, label { color: #2e7d32 !important; }
@@ -34,21 +50,20 @@ with st.sidebar:
     st.write("---")
 
     if not st.session_state.logged_in:
-        # HIER SIND DIE ZWEI TABS FÜR LOGIN UND REGISTRIERUNG
         t_log, t_reg = st.tabs(["🔐 Login", "📝 Registrieren"])
-        
         with t_log:
             u_in = st.text_input("Nutzername", key="l_u").strip()
             p_in = st.text_input("Passwort", type="password", key="l_p").strip()
             if st.button("Anmelden"):
                 df_n = hole_df("nutzer")
                 if not df_n.empty:
-                    # Passwort hashen und vergleichen
                     match = df_n[(df_n['benutzername'] == u_in) & (df_n['passwort'] == hash_passwort(p_in))]
                     if not match.empty:
                         st.session_state.logged_in = True
                         st.session_state.user = u_in
                         st.session_state.user_role = match.iloc[0]['rolle']
+                        # Sidebar schließen
+                        close_sidebar_mobile()
                         st.rerun()
                     else: st.error("Login falsch.")
 
@@ -57,8 +72,6 @@ with st.sidebar:
             r_u = st.text_input("Nutzername*", key="reg_u").strip()
             r_e = st.text_input("E-Mail*", key="reg_e").strip()
             r_p = st.text_input("Passwort*", type="password", key="reg_p").strip()
-            
-            # DIESE FELDER FEHLTEN VORHIN:
             r_v = st.text_input("Vorname", key="reg_v").strip()
             r_n = st.text_input("Nachname", key="reg_n").strip()
             r_a = st.number_input("Alter", 0, 100, 25, key="reg_a")
@@ -66,33 +79,53 @@ with st.sidebar:
             
             if st.button("Konto erstellen"):
                 if r_u and r_p and r_e and r_agb:
-                    # Übergabe an die Datenbank (7 Parameter)
                     if registriere_nutzer(r_u, r_p, r_e, r_v, r_n, r_a, r_agb):
                         st.success("Erfolg! Jetzt einloggen.")
-                    else:
-                        st.error("Name oder E-Mail schon vergeben.")
-                else:
-                    st.warning("Bitte alle * Felder ausfüllen.")
-    
+                    else: st.error("Fehler bei Registrierung.")
+
     else:
-        # MENÜ FÜR EINGELOGGTE NUTZER
         st.success(f"Moin {st.session_state.user}!")
-        if st.button("📍 Spot suchen"): st.session_state.wahl = "📍 Suche"; st.rerun()
-        if st.button("💡 Spot vorschlagen"): st.session_state.wahl = "💡 Vorschlag"; st.rerun()
-        if st.button("👤 Mein Profil"): st.session_state.wahl = "👤 Profil"; st.rerun()
-        if st.button("💬 Feedback"): st.session_state.wahl = "💬 Feedback"; st.rerun()
+        
+        # NAVIGATION MIT AUTO-CLOSE
+        if st.button("📍 Spot suchen"): 
+            st.session_state.wahl = "📍 Suche"
+            close_sidebar_mobile()
+            st.rerun()
+            
+        if st.button("💡 Spot vorschlagen"): 
+            st.session_state.wahl = "💡 Vorschlag"
+            close_sidebar_mobile()
+            st.rerun()
+            
+        if st.button("👤 Mein Profil"): 
+            st.session_state.wahl = "👤 Profil"
+            close_sidebar_mobile()
+            st.rerun()
+            
+        if st.button("💬 Feedback"): 
+            st.session_state.wahl = "💬 Feedback"
+            close_sidebar_mobile()
+            st.rerun()
         
         if st.session_state.user_role == 'admin':
             st.write("---")
-            if st.button("🛠️ Admin-Bereich"): st.session_state.wahl = "🛠️ Admin"; st.rerun()
+            if st.button("🛠️ Admin-Bereich"): 
+                st.session_state.wahl = "🛠️ Admin"
+                close_sidebar_mobile()
+                st.rerun()
             
         st.write("---")
-        if st.button("📄 Rechtliches"): st.session_state.wahl = "📄 Recht"; st.rerun()
+        if st.button("📄 Rechtliches"): 
+            st.session_state.wahl = "📄 Recht"
+            close_sidebar_mobile()
+            st.rerun()
+            
         if st.button("🚪 Logout"): 
             st.session_state.logged_in = False
+            close_sidebar_mobile()
             st.rerun()
 
-# Routing: Was wird im Hauptfenster angezeigt?
+# Routing
 if st.session_state.wahl == "📍 Suche": show_user_area()
 elif st.session_state.wahl == "💡 Vorschlag": show_proposal_area()
 elif st.session_state.wahl == "👤 Profil": show_profile_area()
