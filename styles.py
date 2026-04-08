@@ -29,5 +29,7 @@ def show_header():
         try:
             st.image("Kopf_seite.png", use_container_width=True)
         except:
-            st.title("🦊 WuselMap")
+            # --- KORREKTUR HIER ---
+            # Fuchs-Emoji entfernt
+            st.title("WuselMap") 
     st.divider()
