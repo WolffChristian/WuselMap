@@ -6,11 +6,11 @@ from admin_area import show_admin_area
 
 APP_NAME = "KletterKompass"
 
-# WICHTIG: Sidebar auf 'collapsed' setzen, damit sie am Handy einklappt
+# In deiner app.py ganz oben:
 st.set_page_config(
-    page_title=APP_NAME, 
+    page_title="KletterKompass", 
     layout="wide", 
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed" # Das sorgt für das Zuklappen
 )
 
 # Dein Styling beibehalten
