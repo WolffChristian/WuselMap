@@ -146,3 +146,20 @@ def hole_nachrichten(nutzername):
         # Holt Nachrichten, die AN den Nutzer gehen
         return pd.read_sql(f"SELECT * FROM nachrichten WHERE an_nutzer = '{nutzername}' ORDER BY zeitpunkt DESC", conn)
     finally: conn.close()
+
+def fuege_freund_hinzu(nutzer, freund_name):
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = "INSERT IGNORE INTO freunde (nutzer, freund) VALUES (%s, %s)"
+    try:
+        cursor.execute(sql, (nutzer, freund_name))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def hole_freundesliste(nutzer):
+    conn = get_db_connection()
+    if conn is None: return []
+    try:
+        df = pd.read_sql(f"SELECT freund FROM freunde WHERE nutzer = '{nutzer}'", conn)
+        return df['freund'].tolist() if not df.empty else []
+    finally: conn.close()
