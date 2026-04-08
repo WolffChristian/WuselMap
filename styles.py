@@ -3,73 +3,49 @@ import streamlit as st
 def apply_custom_css():
     st.markdown("""
         <style>
-        /* 1. GRUND-DESIGN */
+        /* 1. Global & Hintergrund */
         [data-testid="stSidebar"] { display: none; }
         .stApp { background-color: #001220 !important; }
+        
+        /* 2. TEXT & LABELS (Hellweiß für beste Lesbarkeit) */
         h1, h2, h3 { color: #ffffff !important; text-align: center; font-weight: 800; }
-        p, span, label, .stMarkdown { color: #eeeeee !important; }
+        
+        /* Das hier fixiert die Beschriftungen über den Suchfeldern */
+        label, .stMarkdown p, .stSlider label { 
+            color: #ffffff !important; 
+            font-weight: 600 !important;
+            font-size: 1.1rem !important;
+        }
 
-        /* 2. TABELLEN-FIX (ADMIN-BEREICH) */
-        /* Wir machen den Hintergrund für Dataframes dunkel */
-        [data-testid="stDataFrame"] {
+        /* 3. EINGABEFELDER (Kontrastreichere Ränder) */
+        .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
             background-color: #001f3f !important;
-            border: 1px solid #004a99 !important;
+            color: white !important;
+            border: 2px solid #004a99 !important; /* Dickerer, blauer Rand */
             border-radius: 8px !important;
         }
-        /* Falls du st.table nutzt, greift das hier: */
+
+        /* 4. BUTTONS */
+        div.stButton > button {
+            background-color: #004a99 !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 10px !important;
+            font-weight: bold !important;
+        }
+        div.stButton > button:hover {
+            background-color: #ff8c00 !important;
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.5) !important;
+        }
+
+        /* 5. TABELLEN (Dunkel & sauber) */
         .stTable, [data-testid="stTable"] {
             background-color: #001f3f !important;
             color: white !important;
         }
 
-        /* 3. FOTO-UPLOAD (WEISSER BALKEN FIX) */
-        /* Wir färben den weißen Hintergrund der Dropzone ein */
-        [data-testid="stFileUploaderDropzone"] {
-            background-color: #001f3f !important; /* Dunkelblau statt Weiß */
-            border: 1px dashed #004a99 !important;
-            color: white !important;
-        }
-        /* Text im Uploader */
-        [data-testid="stFileUploaderDropzone"] div div span {
-            color: #bbbbbb !important;
-        }
-
-        /* 4. ALLE BUTTONS (Blau, Hover Orange) */
-        /* Wir zwingen JEDEN Button-Typ in den Wusel-Look */
-        button, div.stButton > button, 
-        button[kind="primaryFormSubmit"], 
-        button[kind="secondaryFormSubmit"] {
-            background-color: #004a99 !important;
-            color: white !important;
-            border-radius: 10px !important;
-            border: 1px solid #005fcc !important;
-            font-weight: bold !important;
-            transition: 0.3s ease !important;
-        }
-        button:hover, div.stButton > button:hover {
-            background-color: #ff8c00 !important;
-            border-color: #ff8c00 !important;
-            transform: translateY(-2px);
-        }
-
-        /* 5. EINGABEFELDER & SELECTBOXEN */
-        .stTextInput input, .stNumberInput input, .stTextArea textarea, 
-        div[data-baseweb="select"] > div {
-            background-color: #001f3f !important;
-            color: white !important;
-            border: 1px solid #004a99 !important;
-            border-radius: 8px !important;
-        }
-
         /* 6. TABS */
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; justify-content: center; }
-        .stTabs [data-baseweb="tab"] { 
-            background-color: #002244; 
-            border-radius: 8px; border: 1px solid #003366;
-        }
         .stTabs [aria-selected="true"] { background-color: #ff8c00 !important; }
-        
-        hr { border-color: #003366 !important; }
         </style>
     """, unsafe_allow_html=True)
 
