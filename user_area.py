@@ -49,17 +49,35 @@ def show_proposal_area():
     with st.form("v_form", clear_on_submit=True):
         v_n = st.text_input("Name des Spots*")
         v_s = st.text_input("Straße & Hausnr.*")
-        v_p = st.text_input("PLZ*")
         v_st = st.text_input("Stadt*")
+        v_p = st.text_input("PLZ (optional)") # Jetzt optional
         v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
         v_img = st.file_uploader("Foto hochladen", type=["jpg", "png", "jpeg"])
         ds = st.checkbox("Keine Personen auf dem Foto erkennbar*")
         
         if st.form_submit_button("Einsenden"):
-            if v_n and v_s and v_p and v_st and ds:
+            # PLZ (v_p) ist nicht mehr Teil der Pflichtprüfung
+            if v_n and v_s and v_st and ds:
+                plz_final = v_p.strip()
+                
+                # Wenn PLZ leer, automatisch suchen
+                if not plz_final:
+                    with st.spinner("PLZ wird ermittelt..."):
+                        try:
+                            gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+                            query = f"{v_s}, {v_st}, Deutschland"
+                            res = gc.geocode(query)
+                            if res and 'postcode' in res[0]['components']:
+                                plz_final = res[0]['components']['postcode']
+                            else:
+                                plz_final = "00000"
+                        except:
+                            plz_final = "00000"
+
                 bild_data = optimiere_bild(v_img)
-                if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, "Niedersachsen", v_p, v_st, bild_data, ds):
-                    st.success("Erfolg! Spot wird geprüft.")
+                # Sende vorschlag mit der finalen PLZ
+                if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, "Niedersachsen", plz_final, v_st, bild_data, 1 if ds else 0):
+                    st.success(f"Erfolg! Spot (PLZ {plz_final}) wird geprüft.")
             else: st.warning("Pflichtfelder (*) ausfüllen!")
 
 def show_profile_area():
