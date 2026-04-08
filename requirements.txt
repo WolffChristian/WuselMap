@@ -5,3 +5,4 @@ plotly
 opencage
 numpy
 Pillow
+extra-streamlit-components
