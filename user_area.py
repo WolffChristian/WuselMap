@@ -1,34 +1,45 @@
 import streamlit as st
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
 
-# --- DIE UNTER-FUNKTIONEN (Bleiben wie sie sind) ---
+# --- UNTER-FUNKTION 1: SUCHE ---
 def show_user_area():
-    st.subheader("📍 Kletter-Spots suchen")
-    # ... dein bisheriger Code für die Suche ...
-    st.write("Hier ist die Kartensuche...") 
+    st.markdown("### 📍 Kletter-Spots suchen")
+    # Hier kommt dein Such-Code rein (Karte, Umkreis etc.)
+    st.info("Hier kannst du Spots in deiner Nähe finden.")
 
+# --- UNTER-FUNKTION 2: VORSCHLAG ---
 def show_proposal_area():
-    st.subheader("💡 Neuen Spot vorschlagen")
-    # ... dein bisheriger Code für das Formular ...
-    st.write("Hier ist das Formular...")
+    st.markdown("### 💡 Neuen Spot vorschlagen")
+    # Hier kommt dein Formular-Code rein
+    st.info("Sende uns einen neuen Kletter-Spot.")
 
-# --- DAS NEUE PROFIL MIT UNTER-BALKEN ---
+# --- HAUPT-FUNKTION: PROFIL (Mit den Slidern/Tabs) ---
 def show_profile_area():
-    st.title("👤 Mein Bereich")
+    # Das ist der Bereich, in dem man nach dem Login landet
+    st.title(f"Willkommen, {st.session_state.user}!")
     
-    # Hier kommen die "Slider" (Unter-Tabs) rein, die du wolltest!
-    sub_tabs = st.tabs(["⚙️ Meine Daten", "📍 Suche", "💡 Vorschlag"])
+    # HIER SIND DIE UNTER-KATEGORIEN (Slider)
+    # Suche und Vorschlag sind jetzt TEIL des Profils
+    unter_tabs = st.tabs(["⚙️ Meine Daten", "📍 Suche", "💡 Vorschlag"])
     
-    with sub_tabs[0]:
-        st.write("### Persönliche Daten")
-        # Hier kommt dein bisheriger Profil-Code rein (Name, E-Mail etc.)
-        st.info("Hier kannst du deine Daten ändern.")
-        # Beispiel: aktualisiere_profil(...)
-
-    with sub_tabs[1]:
-        # Ruft die Suche direkt hier im Profil auf
+    with unter_tabs[0]:
+        st.write("### Deine Profildaten")
+        # Hier die Felder für E-Mail, Name etc. anzeigen
+        st.write("Hier kannst du dein Profil verwalten.")
+        
+    with unter_tabs[1]:
+        # Ruft die Suche innerhalb des Profils auf
         show_user_area()
-
-    with sub_tabs[2]:
-        # Ruft den Vorschlag direkt hier im Profil auf
+        
+    with unter_tabs[2]:
+        # Ruft den Vorschlag innerhalb des Profils auf
         show_proposal_area()
+
+# --- WEITERE HAUPT-BEREICHE ---
+def show_feedback_area():
+    st.title("💬 Dein Feedback")
+    st.write("Was können wir verbessern?")
+
+def show_legal_area():
+    st.title("📄 Rechtliches")
+    st.write("Impressum & Datenschutz")
