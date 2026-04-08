@@ -3,89 +3,71 @@ import streamlit as st
 def apply_custom_css():
     st.markdown("""
         <style>
-        /* 1. HINTERGRUND & TEXT */
+        /* 1. GRUNDGERÜST */
         [data-testid="stSidebar"] { display: none; }
         .stApp { background-color: #001220 !important; }
-        h1, h2, h3 { color: #ffffff !important; text-align: center; font-weight: 800; }
+        h1, h2, h3 { color: #ffffff !important; text-align: center; }
         p, span, label, .stMarkdown { color: #eeeeee !important; }
 
-        /* 2. EINGABEFELDER (Text, Zahlen, Auswahlmenüs) */
-        /* Text-Inputs, Number-Inputs und Text-Areas */
-        .stTextInput input, .stNumberInput input, .stTextArea textarea {
-            background-color: #001f3f !important;
+        /* 2. DATEI-UPLOADER BUTTON FIX */
+        /* Wir zielen direkt auf den Knopf im Uploader */
+        [data-testid="stFileUploader"] section button {
+            background-color: #004a99 !important;
             color: white !important;
-            border: 1px solid #004a99 !important;
             border-radius: 8px !important;
+            border: none !important;
         }
-
-        /* Auswahlmenüs (Selectbox) */
-        div[data-baseweb="select"] > div {
-            background-color: #001f3f !important;
-            color: white !important;
-            border: 1px solid #004a99 !important;
+        [data-testid="stFileUploader"] section button:hover {
+            background-color: #ff8c00 !important;
         }
-        
-        /* Dropdown-Liste der Auswahlmenüs */
-        ul[role="listbox"] {
-            background-color: #001f3f !important;
+        /* Der Text "Browse files" oder "Dateien durchsuchen" */
+        [data-testid="stFileUploader"] section button div p {
             color: white !important;
         }
 
-        /* 3. DATEI-UPLOADER (Vorschlag-Bereich) */
-        [data-testid="stFileUploader"] {
+        /* 3. TABELLEN-FIX (ADMIN-BEREICH) */
+        /* Das macht die klassischen HTML-Tabellen dunkel */
+        .stTable, [data-testid="stTable"] {
             background-color: #001f3f !important;
-            border: 1px dashed #004a99 !important;
-            border-radius: 8px !important;
-            padding: 10px !important;
+            color: white !important;
+            border-radius: 8px;
         }
-        [data-testid="stFileUploader"] section {
+        [data-testid="stTable"] th {
+            background-color: #003366 !important;
+            color: #ff8c00 !important; /* Spaltenköpfe in Orange */
+        }
+        [data-testid="stTable"] td {
+            background-color: #001f3f !important;
+            color: white !important;
+        }
+
+        /* Falls du st.dataframe nutzt: Das ist ein Iframe/Canvas. 
+           Wir versuchen den Container abzudunkeln */
+        [data-testid="stDataFrame"] {
             background-color: #001f3f !important;
         }
 
-        /* 4. ALLE BUTTONS (Formulare & Normal) */
-        /* Wir zwingen JEDEN Button in den Wusel-Look */
+        /* 4. ALLE ANDEREN BUTTONS */
         div.stButton > button, 
         button[kind="primaryFormSubmit"], 
         button[kind="secondaryFormSubmit"] {
             background-color: #004a99 !important;
             color: white !important;
-            border: none !important;
             border-radius: 10px !important;
-            padding: 0.6rem 1.2rem !important;
+            border: none !important;
             font-weight: bold !important;
             width: 100% !important;
-            transition: 0.3s ease !important;
         }
-
-        div.stButton > button:hover, 
-        button[kind="primaryFormSubmit"]:hover {
+        div.stButton > button:hover {
             background-color: #ff8c00 !important;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4) !important;
         }
 
-        /* 5. TABELLEN (Adminbereich) */
-        /* Wir dunkeln die Tabellen-Hintergründe ab */
-        [data-testid="stDataFrame"] {
-            background-color: #001f3f !important;
-            border-radius: 8px !important;
-        }
-        /* Tabellen-Zellen-Text anpassen */
-        [data-testid="stTable"] td, [data-testid="stTable"] th {
+        /* 5. FORMULARFELDER */
+        .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
             background-color: #001f3f !important;
             color: white !important;
+            border: 1px solid #004a99 !important;
         }
-
-        /* 6. TABS */
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; justify-content: center; }
-        .stTabs [data-baseweb="tab"] { 
-            background-color: #002244; 
-            border-radius: 8px; border: 1px solid #003366;
-        }
-        .stTabs [aria-selected="true"] { background-color: #ff8c00 !important; }
-        
-        /* Divider & Linien */
-        hr { border-color: #003366 !important; }
         </style>
     """, unsafe_allow_html=True)
 
