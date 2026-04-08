@@ -5,47 +5,67 @@ from opencage.geocoder import OpenCageGeocode
 def show_admin_area():
     st.title("🛠️ Admin-Bereich")
     
-    # Die Tabs müssen eingerückt sein (4 Leerzeichen)
     t1, t2, t3 = st.tabs(["📥 Vorschläge", "💬 Feedback", "👥 Nutzer"])
     
     with t1:
         df_v = hole_df("vorschlaege")
         if not df_v.empty:
+            # Wir säubern die Spaltennamen (alle klein und ohne Leerzeichen)
+            df_v.columns = [c.lower().strip() for c in df_v.columns]
+            
             for i, r in df_v.iterrows():
                 with st.container(border=True):
-                    st.write(f"**{r['standort']}** in {r['stadt']}")
-                    if st.button(f"✅ Freigeben: {r['standort']}", key=f"v_{r['id']}"):
+                    # SICHERHEITS-CHECK: Wir suchen den Namen, egal wie er geschrieben ist
+                    # Wir probieren 'standort', falls das fehlt 'name', sonst 'Unbekannt'
+                    name_spot = r.get('standort', r.get('name', 'Unbekannter Spot'))
+                    stadt_spot = r.get('stadt', 'Unbekannter Ort')
+                    
+                    st.write(f"**{name_spot}** in {stadt_spot}")
+                    
+                    # Button mit ID
+                    btn_id = r.get('id', i)
+                    if st.button(f"✅ Freigeben: {name_spot}", key=f"v_{btn_id}"):
                         gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-                        res = gc.geocode(f"{r['adresse']}, {r['plz']} {r['stadt']}, Deutschland")
+                        # Suche mit den verfügbaren Daten
+                        query = f"{r.get('adresse', '')}, {r.get('plz', '')} {stadt_spot}, Deutschland"
+                        res = gc.geocode(query)
+                        
                         if res:
-                            speichere_spielplatz(
-                                r['standort'], 
-                                res[0]['geometry']['lat'], 
-                                res[0]['geometry']['lng'], 
-                                r['altersfreigabe'], 
-                                r['bundesland'], 
-                                r['plz'], 
-                                r['stadt'], 
-                                r['bild_data'], 
+                            lat = res[0]['geometry']['lat']
+                            lon = res[0]['geometry']['lng']
+                            
+                            erfolg = speichere_spielplatz(
+                                name_spot, 
+                                lat, 
+                                lon, 
+                                r.get('altersfreigabe', 'Alle'), 
+                                r.get('bundesland', 'Niedersachsen'), 
+                                r.get('plz', ''), 
+                                stadt_spot, 
+                                r.get('bild_data', None), 
                                 r.get('foto_datenschutz', 1)
                             )
-                            st.success("Spot live!")
-                            st.rerun()
+                            
+                            if erfolg:
+                                st.success(f"'{name_spot}' ist jetzt live!")
+                                st.rerun()
+                            else:
+                                st.error("Konnte nicht in Haupttabelle speichern.")
+                        else:
+                            st.error("Adresse nicht gefunden.")
         else:
-            st.write("Keine Vorschläge.")
+            st.write("Keine Vorschläge vorhanden.")
 
     with t2:
         df_f = hole_df("feedback")
         if not df_f.empty:
-            st.table(df_f) # Auch hier auf st.table umgestellt für den Dark Mode
+            st.table(df_f)
         else:
             st.write("Kein Feedback.")
 
     with t3:
-        # HIER WAR DER FEHLER: Alles unter 'with t3:' muss sauber eingerückt sein
         df_n = hole_df("nutzer")
         if not df_n.empty:
-            # st.table statt st.dataframe für die dunkle Optik
             st.table(df_n.drop(columns=['passwort'], errors='ignore'))
         else:
             st.write("Keine Nutzer registriert.")
