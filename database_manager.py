@@ -22,7 +22,6 @@ def get_db_connection():
         return None
 
 def hash_passwort(pw):
-    # .strip() entfernt Leerzeichen am Anfang/Ende
     return hashlib.sha256(str.encode(pw.strip())).hexdigest()
 
 def optimiere_bild(bild_file):
@@ -45,15 +44,11 @@ def hole_df(tabelle="spielplaetze"):
     finally: conn.close()
 
 def registriere_nutzer(un, pw, em, vn, nn, al, agb):
-    conn = get_db_connection()
-    if conn is None: return False
-    cursor = conn.cursor()
-    # .strip().lower() macht aus " Christian " -> "christian"
+    conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
     try:
         cursor.execute(sql, (un.strip().lower(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
-        conn.commit()
-        return True
+        conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
 
@@ -77,14 +72,5 @@ def sende_feedback(us, ms):
     sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
     try:
         cursor.execute(sql, (us, ms)); conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO spielplaetze (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-    try:
-        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
-        conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
