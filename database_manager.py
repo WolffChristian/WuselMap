@@ -42,7 +42,9 @@ def hole_df(tabelle="spielplaetze"):
         df = pd.read_sql(f"SELECT * FROM {tabelle}", conn)
         if not df.empty:
             df.columns = [c.lower() for c in df.columns]
-            if 'standort' in df.columns: df = df.rename(columns={'standort': 'Standort'})
+            # Vereinheitlichung für die Anzeige
+            if 'standort' in df.columns: 
+                df = df.rename(columns={'standort': 'Standort'})
         return df
     finally: conn.close()
 
@@ -68,12 +70,10 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     conn = get_db_connection()
     if not conn: return False
     cursor = conn.cursor()
-    # KORREKTUR: 'eingereicht_von' wurde entfernt, da die Spalte in deiner DB fehlt
     sql = """INSERT INTO vorschlaege 
              (standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) 
              VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"""
     try:
-        # Hier auch das 'us' (User) aus den Werten entfernt
         cursor.execute(sql, (n, ad, al, bund, plz, stadt, bild, ds))
         conn.commit()
         return True
@@ -93,9 +93,26 @@ def sende_feedback(us, ms):
 
 def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
     conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO spielplaetze (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    sql = """INSERT INTO spielplaetze 
+             (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) 
+             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
     try:
         cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
         conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
+
+# --- NEU: Löschfunktion für erledigte Vorschläge ---
+def loesche_vorschlag(v_id):
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM vorschlaege WHERE id = %s", (v_id,))
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"Fehler beim Löschen des Vorschlags: {e}")
+        return False
+    finally:
+        cursor.close(); conn.close()
