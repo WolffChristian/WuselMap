@@ -7,9 +7,9 @@ def apply_custom_css():
         [data-testid="stSidebar"] { display: none; }
         .main { background-color: #ffffff; }
 
-        /* 2. Überschriften (Dunkelblau) */
+        /* 2. Überschriften (Kräftiges, tiefes Blau) */
         h1, h2, h3 { 
-            color: #001f3f !important; 
+            color: #003366 !important; /* Neues, kräftigeres Blau */
             text-align: center; 
             font-weight: 800; 
         }
@@ -21,17 +21,17 @@ def apply_custom_css():
         }
         .stTabs [data-baseweb="tab"] { 
             height: 40px; 
-            background-color: #f0f2f6; 
+            background-color: #f8f9fa; 
             border-radius: 8px; 
             padding: 0px 20px;
-            border: 1px solid #dfe1e5;
+            border: 1px solid #dee2e6;
         }
         /* Inaktiver Text */
         .stTabs [data-baseweb="tab"] p { 
-            color: #555555 !important; 
+            color: #495057 !important; 
             font-weight: 600; 
         }
-        /* Aktiver Tab (Orange wie die Route im Logo) */
+        /* Aktiver Tab (Sattes Wusel-Orange) */
         .stTabs [aria-selected="true"] { 
             background-color: #ff8c00 !important; 
             border: none !important; 
@@ -40,29 +40,33 @@ def apply_custom_css():
             color: #ffffff !important; 
         }
 
-        /* 4. Buttons (Dunkelblau) */
+        /* 4. Buttons (Kräftiges Blau) */
         .stButton>button {
             border-radius: 10px;
             border: none;
-            background-color: #001f3f;
+            background-color: #003366; /* Hier auch das neue Blau */
             color: white;
-            transition: 0.3s;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
         }
         .stButton>button:hover {
-            background-color: #ff8c00; /* Wechselt zu Orange beim Drüberfahren */
+            background-color: #ff8c00; 
             color: white;
+            transform: translateY(-1px); /* Kleiner Hover-Effekt */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
-        /* 5. Input Felder abrunden */
+        /* 5. Input Felder & Karten-Look */
         .stTextInput>div>div>input, .stTextArea>div>div>textarea {
             border-radius: 8px;
+            border: 1px solid #ced4da;
         }
 
-        /* 6. Info-Boxen & Erfolg (Erfolgsmeldung in Orange/Gelb) */
+        /* 6. Status-Meldungen */
         .stSuccess {
-            background-color: #fff3e0;
-            color: #e65100;
-            border: 1px solid #ffb74d;
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
         }
         </style>
     """, unsafe_allow_html=True)
