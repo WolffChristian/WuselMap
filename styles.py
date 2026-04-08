@@ -25,26 +25,38 @@ def apply_custom_css():
         }
         .stTabs [aria-selected="true"] p { color: #ffffff !important; }
 
-        /* 4. BUTTONS (Kräftiges Blau, Text weiß, Hover Orange) */
-        /* Das targetet alle Buttons in der App */
-        div.stButton > button {
-            background-color: #003366 !important; /* Kräftiges Blau */
-            color: white !important;              /* Weißer Text */
+        /* 4. DIE BUTTON-KORREKTUR (Nuclear Option) */
+        /* Wir zwingen JEDEN Button-Typ in unser Blau */
+        button[kind="primary"], 
+        button[kind="secondary"], 
+        [data-testid="stBaseButton-primary"], 
+        [data-testid="stBaseButton-secondary"],
+        .stButton button {
+            background-color: #003366 !important; 
+            color: white !important;
             border-radius: 10px !important;
-            border: none !important;
+            border: 1px solid #003366 !important;
             padding: 0.5rem 1rem !important;
             font-weight: 600 !important;
-            width: 100% !important;               /* Damit sie schön breit sind */
             transition: all 0.3s ease !important;
-            height: auto !important;
         }
 
-        /* Hover-Effekt: Button wird Orange */
-        div.stButton > button:hover {
-            background-color: #ff8c00 !important; /* Wusel-Orange */
+        /* Hover-Effekt für alle Buttons (Orange) */
+        button[kind="primary"]:hover, 
+        button[kind="secondary"]:hover,
+        [data-testid="stBaseButton-primary"]:hover,
+        [data-testid="stBaseButton-secondary"]:hover,
+        .stButton button:hover {
+            background-color: #ff8c00 !important; 
+            border-color: #ff8c00 !important;
             color: white !important;
-            border: none !important;
-            transform: scale(1.02);               /* Wird minimal größer beim Drüberfahren */
+            transform: scale(1.02) !important;
+        }
+
+        /* Verhindert, dass der Text beim Klicken schwarz wird */
+        button:focus, button:active {
+            color: white !important;
+            box-shadow: none !important;
         }
 
         /* 5. Input-Felder (Login etc.) */
@@ -59,7 +71,6 @@ def show_header():
     col1, col2, col3 = st.columns([1, 4, 1])
     with col2:
         try:
-            # Pfad zu deinem Assets-Ordner
             st.image("assets/Kopf_seite.png", use_container_width=True)
         except:
             st.title("WuselMap") 
