@@ -38,8 +38,17 @@ def show_user_area():
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
                     with col_r:
-                        fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500)
-                        fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
+                        # Orange Punkte auf dunkler Karte
+                        fig = px.scatter_mapbox(
+                            final, lat="lat", lon="lon", 
+                            hover_name="Standort", zoom=10, height=500,
+                            color_discrete_sequence=["#ff8c00"]
+                        )
+                        fig.update_layout(
+                            mapbox_style="carto-darkmatter", 
+                            margin={"r":0,"t":0,"l":0,"b":0}, 
+                            mapbox_center={"lat": slat, "lon": slon}
+                        )
                         st.plotly_chart(fig, use_container_width=True)
                 else: st.warning("Keine Spots im Umkreis gefunden.")
         else: st.error("Adresse nicht gefunden.")
@@ -50,17 +59,15 @@ def show_proposal_area():
         v_n = st.text_input("Name des Spots*")
         v_s = st.text_input("Straße & Hausnr.*")
         v_st = st.text_input("Stadt*")
-        v_p = st.text_input("PLZ (optional)") # Jetzt optional
+        v_p = st.text_input("PLZ (optional)") 
         v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
         v_img = st.file_uploader("Foto hochladen", type=["jpg", "png", "jpeg"])
         ds = st.checkbox("Keine Personen auf dem Foto erkennbar*")
         
         if st.form_submit_button("Einsenden"):
-            # PLZ (v_p) ist nicht mehr Teil der Pflichtprüfung
             if v_n and v_s and v_st and ds:
                 plz_final = v_p.strip()
                 
-                # Wenn PLZ leer, automatisch suchen
                 if not plz_final:
                     with st.spinner("PLZ wird ermittelt..."):
                         try:
@@ -75,7 +82,6 @@ def show_proposal_area():
                             plz_final = "00000"
 
                 bild_data = optimiere_bild(v_img)
-                # Sende vorschlag mit der finalen PLZ
                 if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, "Niedersachsen", plz_final, v_st, bild_data, 1 if ds else 0):
                     st.success(f"Erfolg! Spot (PLZ {plz_final}) wird geprüft.")
             else: st.warning("Pflichtfelder (*) ausfüllen!")
@@ -117,41 +123,12 @@ def show_legal_area():
     
     with legal_tabs[0]:
         st.subheader("Impressum")
-        st.write("""
-        **Verantwortlich für den Inhalt nach § 5 TMG:** Christian Wolff  
-        [Straße / Nr.]  
-        [PLZ] Varel  
-        
-        **Kontakt:** E-Mail: [Wird nach Benennung ergänzt]  
-        """)
+        st.write(f"**Verantwortlich:** Christian Wolff  \n[Straße / Nr.]  \n[PLZ] Varel")
 
     with legal_tabs[1]:
-        st.subheader("Datenschutzerklärung (DSGVO)")
-        st.write("""
-        **1. Verantwortliche Stelle** Verantwortlich für die Datenverarbeitung in dieser App ist Christian Wolff (Kontaktdaten siehe Impressum).
-        
-        **2. Erhebung und Speicherung personenbezogener Daten** Bei der Nutzung dieser App werden folgende Daten erhoben:  
-        * **Registrierungsdaten:** Benutzername, E-Mail, Name, Alter.
-        * **Standortdaten:** Nutzung von Geodaten über *OpenCage* zur Spot-Suche.
-        * **Inhalte:** Hochgeladene Fotos und Spot-Vorschläge werden in der TiDB Cloud gespeichert.
-        
-        **3. Zweck der Verarbeitung** Die Verarbeitung erfolgt gemäß Art. 6 Abs. 1 lit. b DSGVO zur Bereitstellung der App-Funktionen.
-        
-        **4. Rechte der Nutzer** Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17) und Datenübertragbarkeit (Art. 20).
-        
-        **5. Datensicherheit** Die Datenbank ist verschlüsselt. Fotos werden vor der Speicherung optimiert und anonymisiert.
-        """)
+        st.subheader("Datenschutzerklärung")
+        st.write("Infos zur TiDB Cloud Speicherung und OpenCage Nutzung.")
 
     with legal_tabs[2]:
-        st.subheader("🛡️ Jugend- und Medienschutz")
-        st.write("""
-        **1. Schutz von Minderjährigen (JuSchG & JMStV)** Die Sicherheit von Kindern steht an oberster Stelle. Wir halten uns an die Vorgaben des Jugendschutzgesetzes.
-        
-        **2. Altersfreigaben** Wir erfassen das Alter der Nutzer, um eine altersgerechte Nutzung der Funktionen (z.B. Feedback) sicherzustellen.
-        
-        **3. Bildrechte & Privatsphäre** Es dürfen keine Personen, insbesondere keine Kinder, auf den Fotos erkennbar sein. Verstöße führen zur sofortigen Löschung.
-        
-        **4. Moderation** Alle eingereichten Vorschläge werden manuell geprüft, um ungeeignete Inhalte zu verhindern.
-        
-        **5. Meldestelle** Gefährdende Inhalte können sofort über die Feedback-Funktion oder per E-Mail gemeldet werden.
-        """)
+        st.subheader("🛡️ Jugendschutz")
+        st.write("Keine Personen auf Fotos. Manuelle Moderation aller Spots.")
