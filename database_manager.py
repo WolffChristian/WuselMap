@@ -65,13 +65,22 @@ def aktualisiere_profil(un, em, vn, nn, al, emo):
     finally: cursor.close(); conn.close()
 
 def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO vorschlaege (name, adresse, alter_gruppe, eingereicht_von, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    conn = get_db_connection()
+    if conn is None: return False
+    cursor = conn.cursor()
+    # KORREKTUR: 'standort' statt 'name' und 'altersfreigabe' statt 'alter_gruppe'
+    sql = """INSERT INTO vorschlaege 
+             (standort, adresse, altersfreigabe, eingereicht_von, bundesland, plz, stadt, bild_data, foto_datenschutz) 
+             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
     try:
         cursor.execute(sql, (n, ad, al, us, bund, plz, stadt, bild, ds))
-        conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"Fehler beim Speichern: {e}") # Zeigt uns jetzt den echten Fehler!
+        return False
+    finally:
+        cursor.close(); conn.close()
 
 def sende_feedback(us, ms):
     conn = get_db_connection(); cursor = conn.cursor()
