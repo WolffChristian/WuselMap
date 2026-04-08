@@ -4,7 +4,8 @@ import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
-from messaging import show_messaging_area # Neu: Import für Nachrichten
+# Importe für das Nachrichtensystem angepasst
+from messaging import show_wuselfunk, show_wusel_crew 
 
 def distanz(lat1, lon1, lat2, lon2):
     R = 6371
@@ -73,14 +74,20 @@ def show_proposal_area():
 
 def show_profile_area():
     st.title("👤 Mein Bereich")
-    # Neu: Nachrichten-Tab hinzugefügt
-    sub_tabs = st.tabs(["⚙️ Profil-Daten", "📍 Suche", "💡 Vorschlag", "📩 Nachrichten"])
+    
+    # Tabs umbenannt und erweitert
+    sub_tabs = st.tabs([
+        "⚙️ Profil-Daten", 
+        "📍 Suche", 
+        "💡 Vorschlag", 
+        "📻 Wuselfunk", 
+        "👥 Wusel-Crew"
+    ])
     
     with sub_tabs[0]:
         df_u = hole_df("nutzer")
         user_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
         
-        # FIX für Sabrina: Wir ermitteln den Index des gespeicherten Emojis
         emo_liste = ["🧗", "🤸", "🦁", "🚀"]
         aktuelles_emo = user_data.get('profil_emoji', "🧗")
         emo_index = emo_liste.index(aktuelles_emo) if aktuelles_emo in emo_liste else 0
@@ -90,7 +97,6 @@ def show_profile_area():
             nv = st.text_input("Vorname", value=user_data['vorname'])
             nn = st.text_input("Nachname", value=user_data['nachname'])
             na = st.number_input("Alter", value=int(user_data['alter_jahre']))
-            # Hier setzen wir 'index=emo_index', damit das gespeicherte Emoji vorausgewählt ist
             emo = st.selectbox("Profil-Emoji", emo_liste, index=emo_index)
             
             if st.form_submit_button("Speichern"):
@@ -104,9 +110,14 @@ def show_profile_area():
             st.session_state.logged_in = False
             st.rerun()
 
-    with sub_tabs[1]: show_user_area()
-    with sub_tabs[2]: show_proposal_area()
-    with sub_tabs[3]: show_messaging_area() # Neu: Aufruf des Nachrichtensystems
+    with sub_tabs[1]: 
+        show_user_area()
+    with sub_tabs[2]: 
+        show_proposal_area()
+    with sub_tabs[3]: 
+        show_wuselfunk() # Wuselfunk Bereich
+    with sub_tabs[4]: 
+        show_wusel_crew() # Crew Bereich
 
 def show_feedback_area():
     st.title("💬 Feedback")
