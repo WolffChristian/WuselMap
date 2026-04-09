@@ -1,4 +1,4 @@
-import streamlit as st  # <-- Das hat gefehlt!
+import streamlit as st
 
 def show_legal_area():
     st.title("📄 Rechtliches & Sicherheit")
@@ -27,16 +27,20 @@ def show_legal_area():
         **2. Fotos & Standorte:** Beim Hochladen von Fotos für Spielplatz-Vorschläge bestätigt der Nutzer, dass keine Personen auf den Bildern erkennbar sind. 
         Die Standortdaten dienen lediglich der Kartendarstellung.
 
-        **3. Rechte der Nutzer:** Du hast jederzeit das Recht auf Auskunft, Korrektur oder Löschung deiner gespeicherten Daten. Kontaktiere uns dazu einfach per E-Mail.
+        **3. Rechte der Nutzer:** Du hast jederzeit das Recht auf Auskunft, Korrektur oder Löschung deiner gespeicherten Daten.
         """)
 
     with legal_tabs[2]: 
-        st.subheader("Haftung & Jugendschutz")
-        st.warning("**Wichtiger Hinweis zur Sicherheit:**")
+        st.subheader("Haftung & Wartung")
+        st.warning("**Wichtiger Hinweis zur Verantwortlichkeit:**")
         st.write("""
-        Die WuselMap ist eine Informationsplattform. Die Nutzung der hier gelisteten Spielplätze und Kletter-Spots erfolgt **ausdrücklich auf eigene Gefahr**. 
+        Die WuselMap ist eine reine **Informationsplattform**. 
+        
+        * **Kein Wartungsdienst:** Der Betreiber der App führt **keine Reparaturen, Instandsetzungen oder Sicherheitsprüfungen** an den gelisteten Spots durch. Verantwortlich für den Zustand und die Sicherheit der Geräte sind ausschließlich die jeweiligen Eigentümer (z.B. Kommunen, Städte oder private Betreiber).
+        
+        * **Nutzung auf eigene Gefahr:** Die Nutzung der Spots erfolgt ausdrücklich auf eigene Gefahr. Eine Haftung für Unfälle oder Schäden wird ausgeschlossen.
         
         * **Aufsichtspflicht:** Eltern haften für ihre Kinder. Die App ersetzt nicht die Aufsichtspflicht der Erziehungsberechtigten.
-        * **Aktualität:** Wir bemühen uns um korrekte Daten, übernehmen aber keine Gewähr für die aktuelle Beschaffenheit oder Sicherheit der vor Ort befindlichen Geräte.
-        * **Meldepflicht:** Sollte ein Spot beschädigt oder gefährlich sein, bitten wir um eine kurze Nachricht über die Feedback-Funktion.
+        
+        * **Warnsystem:** Sollte ein Spot beschädigt sein, bitten wir um eine Nachricht über die Feedback-Funktion. Diese Information dient lediglich dazu, **andere Nutzer innerhalb der App zu warnen** oder den Spot temporär zu kennzeichnen. Meldungen zur Reparatur müssen von den Nutzern eigenständig an die zuständige Stadtverwaltung gerichtet werden.
         """)
