@@ -84,7 +84,7 @@ def sende_feedback(us, ms):
     except: return False
     finally: cursor.close(); conn.close()
 
-# --- ADMIN FUNKTIONEN (Wieder hergestellt) ---
+# --- ADMIN & STATUS FUNKTIONEN ---
 
 def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
     conn = get_db_connection(); cursor = conn.cursor()
@@ -109,6 +109,29 @@ def loesche_feedback(f_id):
     conn = get_db_connection(); cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM feedback WHERE id = %s", (f_id,))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def setze_spot_status(spot_id, neuer_status):
+    """Ändert den Status (z.B. 'aktiv' oder 'wartung')"""
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE spielplaetze SET status = %s WHERE id = %s", (neuer_status, spot_id))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+# --- BEWERTUNGEN ---
+
+def speichere_bewertung(s_id, user, sterne):
+    """Speichert oder aktualisiert eine Sterne-Bewertung"""
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = "INSERT INTO bewertungen (spot_id, nutzername, sterne) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE sterne = %s"
+    try:
+        cursor.execute(sql, (s_id, user, sterne, sterne))
         conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
@@ -161,14 +184,11 @@ def bestaetige_anfrage(absender, ich):
     if not conn: return False
     cursor = conn.cursor()
     try:
-        # 1. Den Eintrag, den der andere erstellt hat, auf bestätigt setzen
         cursor.execute("UPDATE freunde SET status = 'bestätigt' WHERE nutzer = %s AND freund = %s", (absender, ich))
-        # 2. Den Gegeneintrag für dich erstellen
         cursor.execute("INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'bestätigt')", (ich, absender))
-        conn.commit()
-        return True
+        conn.commit(); return True
     except Exception as e:
-        st.error(f"SQL-Fehler beim Bestätigen: {e}") # Das zeigt uns jetzt genau, was fehlt!
+        st.error(f"SQL-Fehler beim Bestätigen: {e}")
         return False
     finally: cursor.close(); conn.close()
 
