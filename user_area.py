@@ -15,6 +15,31 @@ def distanz(lat1, lon1, lat2, lon2):
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
 def show_user_area():
+    # --- NEU: CSS FÜR DEN BILD-VERGRÖSSERN-BUTTON (GHOST-BUTTON) ---
+    st.markdown("""
+        <style>
+        /* Stylt Streamlits eingebauten Vollbild/Vergrößern-Button auf Bildern */
+        [data-testid="stImageFullScreenBtn"] {
+            background-color: #004a99 !important; /* Blau wie Standard-Buttons */
+            color: white !important; /* Weißes Icon */
+            border-radius: 5px !important;
+            opacity: 0.8 !important; /* Normalerweise leicht durchscheinend */
+        }
+        
+        /* Das Icon (SVG) im Button weiß färben */
+        [data-testid="stImageFullScreenBtn"] svg {
+            fill: white !important;
+        }
+
+        /* Hover-Effekt (Button wird orange beim Drüberfahren) */
+        [data-testid="stImageFullScreenBtn"]:hover {
+            background-color: #ff8c00 !important;
+            opacity: 1.0 !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    # -------------------------------------------------------------
+
     st.subheader("📍 Kletter-Spots in deiner Nähe")
     c1, c2 = st.columns([3, 1])
     with c1: adr = st.text_input("Wo suchst du?", "Varel")
@@ -44,10 +69,8 @@ def show_user_area():
                                 # --- WETTER-FIX: Celsius & Encoding ---
                                 try:
                                     stadt_w = r['stadt'].replace(" ", "+")
-                                    # ?m erzwingt metrisches System (Celsius)
                                     w_res = requests.get(f"https://wttr.in/{stadt_w}?format=1&m", timeout=2)
                                     if w_res.status_code == 200:
-                                        # UTF-8 Decoding verhindert den Zeichensalat
                                         wetter_text = w_res.content.decode('utf-8')
                                         st.info(f"☀️ **Wetter aktuell:** {wetter_text}")
                                 except:
