@@ -1,6 +1,8 @@
 import streamlit as st
 from database_manager import hole_df, sende_nachricht, hole_nachrichten, fuege_freund_hinzu, hole_freundesliste
 
+# --- Ersetze den Bereich in messaging.py ---
+
 def show_wuselfunk():
     st.subheader("📻 Wuselfunk (Nachrichten)")
     
@@ -14,13 +16,17 @@ def show_wuselfunk():
                     st.write(f"**Von:** {r['von_nutzer']}")
                     st.write(r['nachricht'])
                     st.caption(f"{r['zeitpunkt']}")
+                    # FIX: Antwort-Button hinzugefügt
+                    if st.button(f"↩️ Antworten an {r['von_nutzer']}", key=f"reply_{i}"):
+                        st.session_state.msg_target = r['von_nutzer']
+                        st.success(f"Empfänger {r['von_nutzer']} wurde ausgewählt! Geh jetzt zum Tab 'Nachricht schreiben'.")
         else:
             st.info("Dein Postfach ist leer.")
 
     with t2:
         meine_freunde = hole_freundesliste(st.session_state.user)
         
-        # Check: Wurde ein Empfänger aus der Crew-Liste angeklickt?
+        # Check: Wurde ein Empfänger aus der Crew oder per Antwort-Button gewählt?
         default_index = 0
         if 'msg_target' in st.session_state and st.session_state.msg_target in meine_freunde:
             default_index = meine_freunde.index(st.session_state.msg_target)
@@ -35,12 +41,11 @@ def show_wuselfunk():
                     if text:
                         if sende_nachricht(st.session_state.user, ziel, text):
                             st.success(f"Funkspruch an {ziel} ist raus!")
-                            # Ziel nach dem Senden zurücksetzen
                             if 'msg_target' in st.session_state:
                                 del st.session_state.msg_target
+                            st.rerun()
                         else:
                             st.error("Funkstörung – Nachricht konnte nicht gesendet werden.")
-
 def show_wusel_crew():
     st.subheader("👥 Wusel-Crew")
     
