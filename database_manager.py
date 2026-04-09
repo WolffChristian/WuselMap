@@ -147,19 +147,48 @@ def hole_nachrichten(nutzername):
         return pd.read_sql(f"SELECT * FROM nachrichten WHERE an_nutzer = '{nutzername}' ORDER BY zeitpunkt DESC", conn)
     finally: conn.close()
 
-def fuege_freund_hinzu(nutzer, freund_name):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT IGNORE INTO freunde (nutzer, freund) VALUES (%s, %s)"
-    try:
-        cursor.execute(sql, (nutzer, freund_name))
-        conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
+def show_wusel_crew():
+    st.subheader("👥 Wusel-Crew")
+    
+    # --- 1. Offene Anfragen (Neu!) ---
+    anfragen = hole_crew_anfragen(st.session_state.user)
+    if anfragen:
+        with st.expander(f"🔔 Du hast {len(anfragen)} neue Crew-Anfragen!", expanded=True):
+            for absender in anfragen:
+                c1, c2, c3 = st.columns([2, 1, 1])
+                c1.write(f"**{absender}** möchte in deine Crew.")
+                if c2.button("✅ Ja", key=f"yes_{absender}"):
+                    if bestaetige_anfrage(absender, st.session_state.user):
+                        st.success("Bestätigt!"); st.rerun()
+                if c3.button("❌ Nein", key=f"no_{absender}"):
+                    if lehne_anfrage_ab(absender, st.session_state.user):
+                        st.rerun()
+        st.divider()
 
-def hole_freundesliste(nutzer):
-    conn = get_db_connection()
-    if conn is None: return []
-    try:
-        df = pd.read_sql(f"SELECT freund FROM freunde WHERE nutzer = '{nutzer}'", conn)
-        return df['freund'].tolist() if not df.empty else []
-    finally: conn.close()
+    # --- 2. Neue Leute suchen ---
+    with st.expander("🔍 Neue Leute zur Crew hinzufügen"):
+        suche = st.text_input("Nutzername eingeben").strip()
+        if st.button("Anfrage senden"):
+            df_u = hole_df("nutzer")
+            if suche.lower() in df_u['benutzername'].str.lower().values:
+                if suche.lower() != st.session_state.user.lower():
+                    if fuege_freund_hinzu(st.session_state.user, suche):
+                        st.info(f"Anfrage an {suche} wurde gesendet! Warte auf Bestätigung.")
+                else: st.warning("Das bist du selbst!")
+            else: st.error("Nutzer nicht gefunden.")
+    
+    st.divider()
+
+    # --- 3. Liste der bestätigten Crew-Mitglieder ---
+    crew = hole_freundesliste(st.session_state.user)
+    if crew:
+        st.write("Deine Crew:")
+        for f in crew:
+            c1, c2 = st.columns([3, 1])
+            with c1: st.write(f"🧗 **{f}**")
+            with c2:
+                if st.button("📩 Funk", key=f"btn_{f}"):
+                    st.session_state.msg_target = f
+                    st.info(f"Geh zum Tab 'Wuselfunk' um {f} zu schreiben.")
+    else:
+        st.caption("Deine Crew ist noch leer oder wartet auf Bestätigungen.")
