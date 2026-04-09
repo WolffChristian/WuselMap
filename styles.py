@@ -14,8 +14,7 @@ def apply_custom_css():
         /* 3. BUTTONS (Standard & Datei-Upload) */
         div.stButton > button, 
         button[kind="primaryFormSubmit"], 
-        button[kind="secondaryFormSubmit"],
-        [data-testid="stFileUploader"] section button {
+        button[kind="secondaryFormSubmit"] {
             background-color: #004a99 !important;
             color: white !important;
             border-radius: 10px !important;
@@ -25,36 +24,33 @@ def apply_custom_css():
             transition: 0.3s;
         }
 
-        /* Datei-Upload Button spezifisch (damit er nicht weiß bleibt) */
+        /* DER ORANGE UPLOAD-BUTTON */
         [data-testid="stFileUploader"] section button {
             background-color: #ff8c00 !important;
-            border-color: #ff8c00 !important;
+            color: white !important;
+            border: none !important;
         }
 
-        /* Hover & Aktiv */
-        div.stButton > button:hover, 
-        div.stButton > button:active,
-        div.stButton > button:focus,
-        button[kind="primaryFormSubmit"]:hover,
-        [data-testid="stFileUploader"] section button:hover {
+        /* DAS WEISSE FELD (DROPZONE) DUNKELBLAU MACHEN */
+        [data-testid="stFileUploadDropzone"] {
+            background-color: #001f3f !important;
+            border: 2px dashed #004a99 !important;
+            color: white !important;
+        }
+
+        /* Text innerhalb des Uploaders weiß machen */
+        [data-testid="stFileUploadDropzone"] div div span {
+            color: white !important;
+        }
+
+        /* Hover-Effekte */
+        div.stButton > button:hover, [data-testid="stFileUploader"] section button:hover {
             background-color: #ff8c00 !important;
             color: white !important;
-            border-color: #ff8c00 !important;
             box-shadow: 0 4px 15px rgba(255, 140, 0, 0.3) !important;
         }
 
-        /* 4. TABELLEN */
-        [data-testid="stTable"], .stTable {
-            background-color: #001f3f !important;
-            color: white !important;
-        }
-        [data-testid="stTable"] td, [data-testid="stTable"] th {
-            color: white !important;
-            background-color: #001f3f !important;
-            border: 1px solid #004a99 !important;
-        }
-
-        /* 5. EINGABEFELDER */
+        /* 4. TABS & EINGABEFELDER (Bleiben gleich) */
         .stTextInput input, .stNumberInput input, .stTextArea textarea, 
         div[data-baseweb="select"] > div {
             background-color: #001f3f !important;
@@ -62,27 +58,10 @@ def apply_custom_css():
             border: 2px solid #004a99 !important;
             border-radius: 8px !important;
         }
-
-        /* 6. TABS */
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; justify-content: center; }
-        .stTabs [data-baseweb="tab"] { 
-            background-color: #002244; 
-            border-radius: 8px; border: 1px solid #003366;
-        }
+        
         .stTabs [aria-selected="true"] { 
             background-color: #ff8c00 !important; 
             color: white !important;
         }
-        
-        hr { border-color: #003366 !important; }
         </style>
     """, unsafe_allow_html=True)
-
-def show_header():
-    c1, c2, c3 = st.columns([1, 4, 1])
-    with c2:
-        try:
-            st.image("assets/Kopf_seite.png", use_container_width=True)
-        except:
-            st.title("WuselMap")
-    st.divider()
