@@ -1,20 +1,17 @@
 import streamlit as st
-# Hier müssen ALLE Funktionen drinstehen, die wir aus dem manager brauchen:
 from database_manager import (
     hole_df, 
     sende_nachricht, 
     hole_nachrichten, 
     fuege_freund_hinzu, 
     hole_freundesliste,
-    hole_crew_anfragen,    # NEU
-    bestaetige_anfrage,    # NEU
-    lehne_anfrage_ab       # NEU
+    hole_crew_anfragen, 
+    bestaetige_anfrage, 
+    lehne_anfrage_ab
 )
-# --- Ersetze den Bereich in messaging.py ---
 
 def show_wuselfunk():
     st.subheader("📻 Wuselfunk (Nachrichten)")
-    
     t1, t2 = st.tabs(["📭 Posteingang", "✍️ Nachricht schreiben"])
     
     with t1:
@@ -25,17 +22,14 @@ def show_wuselfunk():
                     st.write(f"**Von:** {r['von_nutzer']}")
                     st.write(r['nachricht'])
                     st.caption(f"{r['zeitpunkt']}")
-                    # FIX: Antwort-Button hinzugefügt
                     if st.button(f"↩️ Antworten an {r['von_nutzer']}", key=f"reply_{i}"):
                         st.session_state.msg_target = r['von_nutzer']
-                        st.success(f"Empfänger {r['von_nutzer']} wurde ausgewählt! Geh jetzt zum Tab 'Nachricht schreiben'.")
+                        st.success(f"Empfänger {r['von_nutzer']} ausgewählt!")
         else:
             st.info("Dein Postfach ist leer.")
 
     with t2:
         meine_freunde = hole_freundesliste(st.session_state.user)
-        
-        # Check: Wurde ein Empfänger aus der Crew oder per Antwort-Button gewählt?
         default_index = 0
         if 'msg_target' in st.session_state and st.session_state.msg_target in meine_freunde:
             default_index = meine_freunde.index(st.session_state.msg_target)
@@ -50,43 +44,51 @@ def show_wuselfunk():
                     if text:
                         if sende_nachricht(st.session_state.user, ziel, text):
                             st.success(f"Funkspruch an {ziel} ist raus!")
-                            if 'msg_target' in st.session_state:
-                                del st.session_state.msg_target
+                            if 'msg_target' in st.session_state: del st.session_state.msg_target
                             st.rerun()
-                        else:
-                            st.error("Funkstörung – Nachricht konnte nicht gesendet werden.")
+
 def show_wusel_crew():
     st.subheader("👥 Wusel-Crew")
     
-    # 1. Nutzer suchen
-    with st.expander("🔍 Neue Leute zur Crew hinzufügen"):
-        suche = st.text_input("Nutzername eingeben").strip().lower()
-        if st.button("Hinzufügen"):
-            df_u = hole_df("nutzer")
-            if suche in df_u['benutzername'].values:
-                if suche != st.session_state.user.lower():
-                    if fuege_freund_hinzu(st.session_state.user, suche):
-                        st.success(f"{suche} ist jetzt in deiner Crew!")
+    # 1. Offene Anfragen anzeigen
+    anfragen = hole_crew_anfragen(st.session_state.user)
+    if anfragen:
+        with st.expander(f"🔔 Du hast {len(anfragen)} neue Crew-Anfragen!", expanded=True):
+            for absender in anfragen:
+                c1, c2, c3 = st.columns([2, 1, 1])
+                c1.write(f"**{absender}** möchte in deine Crew.")
+                if c2.button("✅ Ja", key=f"yes_{absender}"):
+                    if bestaetige_anfrage(absender, st.session_state.user):
+                        st.success("Bestätigt!"); st.rerun()
+                if c3.button("❌ Nein", key=f"no_{absender}"):
+                    if lehne_anfrage_ab(absender, st.session_state.user):
                         st.rerun()
-                else:
-                    st.warning("Du bist schon dein eigener bester Freund!")
-            else:
-                st.error("Nutzer existiert nicht.")
+        st.divider()
+
+    # 2. Nutzer suchen
+    with st.expander("🔍 Neue Leute zur Crew hinzufügen"):
+        suche = st.text_input("Nutzername eingeben").strip()
+        if st.button("Anfrage senden"):
+            df_u = hole_df("nutzer")
+            if suche.lower() in df_u['benutzername'].str.lower().values:
+                if suche.lower() != st.session_state.user.lower():
+                    if fuege_freund_hinzu(st.session_state.user, suche):
+                        st.info(f"Anfrage an {suche} wurde gesendet!")
+                else: st.warning("Das bist du selbst!")
+            else: st.error("Nutzer nicht gefunden.")
     
     st.divider()
 
-    # 2. Liste der Crew-Mitglieder
+    # 3. Bestätigte Crew
     crew = hole_freundesliste(st.session_state.user)
     if crew:
+        st.write("Deine Crew:")
         for f in crew:
             c1, c2 = st.columns([3, 1])
-            with c1:
-                st.write(f"🧗 **{f}**")
+            with c1: st.write(f"🧗 **{f}**")
             with c2:
-                # Der "Direkt-Funk" Button
                 if st.button("📩 Funk", key=f"btn_{f}"):
                     st.session_state.msg_target = f
-                    st.info(f"Empfänger {f} ausgewählt. Geh jetzt zum Tab 'Wuselfunk'!")
-                    # Optional: st.rerun() um den Status sofort zu zeigen
+                    st.info(f"Geh zu 'Wuselfunk' um {f} zu schreiben.")
     else:
         st.caption("Deine Crew ist noch leer.")
