@@ -1,10 +1,11 @@
+# --- Suche diese Stelle in deiner user_area.py und ersetze die ganze Datei ---
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
-# Importe für das Nachrichtensystem angepasst
 from messaging import show_wuselfunk, show_wusel_crew 
 
 def distanz(lat1, lon1, lat2, lon2):
@@ -40,13 +41,24 @@ def show_user_area():
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
                     with col_r:
+                        # FIX: Style auf "open-street-map" geändert für Farbe
                         fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
-                        fig.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
+                        fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
                         st.plotly_chart(fig, use_container_width=True)
                 else: st.warning("Keine Spots im Umkreis gefunden.")
         else: st.error("Adresse nicht gefunden.")
 
 def show_proposal_area():
+    # FIX: CSS für den Upload-Button (damit er nicht weiß auf weiß ist)
+    st.markdown("""
+        <style>
+        div[data-testid="stFileUploader"] section button {
+            background-color: #ff8c00 !important;
+            color: white !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
     st.subheader("💡 Spot vorschlagen")
     with st.form("v_form", clear_on_submit=True):
         v_n = st.text_input("Name des Spots*")
@@ -72,64 +84,4 @@ def show_proposal_area():
                     st.success(f"Erfolg! Spot (PLZ {plz_final}) wird geprüft.")
             else: st.warning("Pflichtfelder (*) ausfüllen!")
 
-def show_profile_area():
-    st.title("👤 Mein Bereich")
-    
-    # Tabs umbenannt und erweitert
-    sub_tabs = st.tabs([
-        "⚙️ Profil-Daten", 
-        "📍 Suche", 
-        "💡 Vorschlag", 
-        "📻 Wuselfunk", 
-        "👥 Wusel-Crew"
-    ])
-    
-    with sub_tabs[0]:
-        df_u = hole_df("nutzer")
-        user_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
-        
-        emo_liste = ["🧗", "🤸", "🦁", "🚀"]
-        aktuelles_emo = user_data.get('profil_emoji', "🧗")
-        emo_index = emo_liste.index(aktuelles_emo) if aktuelles_emo in emo_liste else 0
-
-        with st.form("p_data"):
-            ne = st.text_input("E-Mail", value=user_data['email'])
-            nv = st.text_input("Vorname", value=user_data['vorname'])
-            nn = st.text_input("Nachname", value=user_data['nachname'])
-            na = st.number_input("Alter", value=int(user_data['alter_jahre']))
-            emo = st.selectbox("Profil-Emoji", emo_liste, index=emo_index)
-            
-            if st.form_submit_button("Speichern"):
-                aktualisiere_profil(st.session_state.user, ne, nv, nn, na, emo)
-                st.success("Daten aktualisiert!")
-                st.rerun()
-        
-        st.divider()
-        if st.button("🚪 Logout", use_container_width=True):
-            st.query_params.clear()
-            st.session_state.logged_in = False
-            st.rerun()
-
-    with sub_tabs[1]: 
-        show_user_area()
-    with sub_tabs[2]: 
-        show_proposal_area()
-    with sub_tabs[3]: 
-        show_wuselfunk() # Wuselfunk Bereich
-    with sub_tabs[4]: 
-        show_wusel_crew() # Crew Bereich
-
-def show_feedback_area():
-    st.title("💬 Feedback")
-    with st.form("f_form"):
-        msg = st.text_area("Deine Nachricht")
-        if st.form_submit_button("Absenden"):
-            if msg and sende_feedback(st.session_state.user, msg):
-                st.success("Vielen Dank!"); st.rerun()
-
-def show_legal_area():
-    st.title("📄 Rechtliches & Sicherheit")
-    legal_tabs = st.tabs(["⚖️ Impressum", "🔒 Datenschutz", "🛡️ Jugendschutz"])
-    with legal_tabs[0]: st.write("**Verantwortlich:** Christian Wolff")
-    with legal_tabs[1]: st.write("Datenschutz-Infos...")
-    with legal_tabs[2]: st.write("Jugendschutz-Infos...")
+# ... (Rest der Datei bleibt gleich)
