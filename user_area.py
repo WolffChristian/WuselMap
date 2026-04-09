@@ -15,30 +15,28 @@ def distanz(lat1, lon1, lat2, lon2):
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
 def show_user_area():
-    # --- NEU: CSS FÜR DEN BILD-VERGRÖSSERN-BUTTON (GHOST-BUTTON) ---
+    # --- CSS FIX FÜR DEN BILD-BUTTON (Vergrößern) ---
     st.markdown("""
         <style>
-        /* Stylt Streamlits eingebauten Vollbild/Vergrößern-Button auf Bildern */
-        [data-testid="stImageFullScreenBtn"] {
-            background-color: #004a99 !important; /* Blau wie Standard-Buttons */
-            color: white !important; /* Weißes Icon */
-            border-radius: 5px !important;
-            opacity: 0.8 !important; /* Normalerweise leicht durchscheinend */
+        /* Erwischt den weißen Button über dem Bild */
+        button[data-testid="stImageFullScreenBtn"] {
+            background-color: #001f3f !important; /* Dunkelblau */
+            border: 1px solid #004a99 !important;
+            color: white !important;
+            border-radius: 4px !important;
         }
-        
-        /* Das Icon (SVG) im Button weiß färben */
-        [data-testid="stImageFullScreenBtn"] svg {
+        /* Icon im Button weiß färben */
+        button[data-testid="stImageFullScreenBtn"] svg {
             fill: white !important;
+            color: white !important;
         }
-
-        /* Hover-Effekt (Button wird orange beim Drüberfahren) */
-        [data-testid="stImageFullScreenBtn"]:hover {
+        /* Hover-Effekt: Wird orange */
+        button[data-testid="stImageFullScreenBtn"]:hover {
             background-color: #ff8c00 !important;
-            opacity: 1.0 !important;
+            border-color: #ff8c00 !important;
         }
         </style>
     """, unsafe_allow_html=True)
-    # -------------------------------------------------------------
 
     st.subheader("📍 Kletter-Spots in deiner Nähe")
     c1, c2 = st.columns([3, 1])
@@ -66,16 +64,18 @@ def show_user_area():
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
                                 
-                                # --- WETTER-FIX: Celsius & Encoding ---
+                                # --- WETTER-FIX: Celsius erzwingen & Encoding säubern ---
                                 try:
                                     stadt_w = r['stadt'].replace(" ", "+")
-                                    w_res = requests.get(f"https://wttr.in/{stadt_w}?format=1&m", timeout=2)
+                                    # Wir nutzen ein schlichteres Format, um Zeichensalat zu vermeiden
+                                    w_res = requests.get(f"https://wttr.in/{stadt_w}?format=%c+%t&m", timeout=2)
                                     if w_res.status_code == 200:
-                                        wetter_text = w_res.content.decode('utf-8')
-                                        st.info(f"☀️ **Wetter aktuell:** {wetter_text}")
+                                        # Sauberes Decoding für Umlaute/Sonderzeichen
+                                        wetter_text = w_res.content.decode('utf-8').replace("Â", "")
+                                        st.info(f"Wetter aktuell: {wetter_text}")
                                 except:
                                     pass 
-                                # --------------------------------------
+                                # -------------------------------------------------------
 
                     with col_r:
                         fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
@@ -171,11 +171,10 @@ def show_legal_area():
     legal_tabs = st.tabs(["⚖️ Impressum", "🔒 Datenschutz", "🛡️ Jugendschutz"])
     with legal_tabs[0]: 
         st.write("**Verantwortlich:** Christian Wolff")
-        st.write("Anschrift: [Deine Straße, PLZ Ort]")
         st.write("Kontakt: info@wuselmap.de")
     with legal_tabs[1]: 
         st.write("**Datenschutzerklärung**")
-        st.write("Wir speichern Passwörter nur als sichere Hash-Werte. Eure Daten werden nicht an Dritte weitergegeben.")
+        st.write("Wir speichern Passwörter nur als sichere Hash-Werte.")
     with legal_tabs[2]: 
         st.write("**Jugendschutz**")
-        st.write("Die Nutzung der Kletter-Spots erfolgt auf eigene Gefahr. Eltern haften für ihre Kinder.")
+        st.write("Eltern haften für ihre Kinder.")
