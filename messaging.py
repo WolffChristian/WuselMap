@@ -65,31 +65,43 @@ def show_wusel_crew():
                         st.rerun()
         st.divider()
 
-    # 2. Verbesserte Suche (Nutzername ODER echter Name)
+    # 2. Verbesserte Suche mit Auswahl-Liste
     with st.expander("🔍 Neue Leute zur Crew hinzufügen"):
         suche = st.text_input("Name oder Nutzername eingeben").strip().lower()
-        if st.button("Anfrage senden"):
-            df_u = hole_df("nutzer")
-            if not df_u.empty:
-                # Wir suchen in allen Namens-Spalten
-                df_u['voller_name'] = df_u['vorname'].str.lower() + " " + df_u['nachname'].str.lower()
-                
-                match = df_u[
-                    (df_u['benutzername'].str.lower() == suche) | 
-                    (df_u['vorname'].str.lower() == suche) | 
-                    (df_u['nachname'].str.lower() == suche) |
-                    (df_u['voller_name'] == suche)
-                ]
-                
-                if not match.empty:
-                    gefunden_un = match.iloc[0]['benutzername']
-                    vorname = match.iloc[0]['vorname']
+        if st.button("Suchen"):
+            if suche:
+                df_u = hole_df("nutzer")
+                if not df_u.empty:
+                    # Suche in Benutzernamen, Vornamen und Nachnamen (Teilübereinstimmung)
+                    treffer = df_u[
+                        (df_u['benutzername'].str.lower().str.contains(suche)) | 
+                        (df_u['vorname'].str.lower().str.contains(suche)) | 
+                        (df_u['nachname'].str.lower().str.contains(suche)) |
+                        ((df_u['vorname'].str.lower() + " " + df_u['nachname'].str.lower()).str.contains(suche))
+                    ]
                     
-                    if gefunden_un != st.session_state.user.lower():
-                        if fuege_freund_hinzu(st.session_state.user, gefunden_un):
-                            st.info(f"Anfrage an {vorname} ({gefunden_un}) wurde gesendet!")
-                    else: st.warning("Das bist du selbst!")
-                else: st.error("Niemanden unter diesem Namen gefunden.")
+                    if not treffer.empty:
+                        st.write(f"Gefundene Personen ({len(treffer)}):")
+                        for _, row in treffer.iterrows():
+                            un = row['benutzername']
+                            vn = row['vorname']
+                            nn = row['nachname']
+                            emo = row.get('profil_emoji', "🧗")
+                            
+                            # Sich selbst aus der Suche ausschließen
+                            if un.lower() == st.session_state.user.lower():
+                                continue
+                                
+                            c1, c2 = st.columns([3, 1])
+                            c1.write(f"{emo} **{vn} {nn}** (@{un})")
+                            # Button für jeden einzelnen Treffer
+                            if c2.button("Einladen", key=f"inv_{un}"):
+                                if fuege_freund_hinzu(st.session_state.user, un):
+                                    st.success(f"Anfrage an {vn} (@{un}) wurde gesendet!")
+                    else:
+                        st.error("Niemanden unter diesem Namen gefunden.")
+            else:
+                st.warning("Bitte gib einen Namen ein.")
     
     st.divider()
 
