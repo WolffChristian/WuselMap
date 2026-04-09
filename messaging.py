@@ -1,6 +1,15 @@
 import streamlit as st
-from database_manager import hole_df, sende_nachricht, hole_nachrichten, fuege_freund_hinzu, hole_freundesliste
-
+# Hier müssen ALLE Funktionen drinstehen, die wir aus dem manager brauchen:
+from database_manager import (
+    hole_df, 
+    sende_nachricht, 
+    hole_nachrichten, 
+    fuege_freund_hinzu, 
+    hole_freundesliste,
+    hole_crew_anfragen,    # NEU
+    bestaetige_anfrage,    # NEU
+    lehne_anfrage_ab       # NEU
+)
 # --- Ersetze den Bereich in messaging.py ---
 
 def show_wuselfunk():
