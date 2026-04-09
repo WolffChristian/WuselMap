@@ -69,18 +69,12 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
     conn = get_db_connection()
     if not conn: return False
     cursor = conn.cursor()
-    sql = """INSERT INTO vorschlaege 
-             (standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) 
-             VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"""
+    sql = "INSERT INTO vorschlaege (standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
     try:
         cursor.execute(sql, (n, ad, al, bund, plz, stadt, bild, ds))
-        conn.commit()
-        return True
-    except Exception as e:
-        st.error(f"Fehler beim Speichern: {e}")
-        return False
-    finally:
-        cursor.close(); conn.close()
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
 
 def sende_feedback(us, ms):
     conn = get_db_connection(); cursor = conn.cursor()
@@ -89,46 +83,6 @@ def sende_feedback(us, ms):
         cursor.execute(sql, (us, ms)); conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
-
-def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = """INSERT INTO spielplaetze 
-             (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) 
-             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
-    try:
-        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
-        conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def loesche_vorschlag(v_id):
-    conn = get_db_connection()
-    if not conn: return False
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DELETE FROM vorschlaege WHERE id = %s", (v_id,))
-        conn.commit()
-        return True
-    except Exception as e:
-        st.error(f"Fehler beim Löschen des Vorschlags: {e}")
-        return False
-    finally:
-        cursor.close(); conn.close()
-
-def loesche_feedback(f_id):
-    conn = get_db_connection()
-    if not conn: return False
-    cursor = conn.cursor()
-    try:
-        # Löscht das Feedback anhand der ID
-        cursor.execute("DELETE FROM feedback WHERE id = %s", (f_id,))
-        conn.commit()
-        return True
-    except Exception as e:
-        st.error(f"Fehler beim Löschen des Feedbacks: {e}")
-        return False
-    finally:
-        cursor.close(); conn.close()
 
 def sende_nachricht(von, an, text):
     conn = get_db_connection(); cursor = conn.cursor()
@@ -143,52 +97,49 @@ def hole_nachrichten(nutzername):
     conn = get_db_connection()
     if conn is None: return pd.DataFrame()
     try:
-        # Holt Nachrichten, die AN den Nutzer gehen
         return pd.read_sql(f"SELECT * FROM nachrichten WHERE an_nutzer = '{nutzername}' ORDER BY zeitpunkt DESC", conn)
     finally: conn.close()
 
-def show_wusel_crew():
-    st.subheader("👥 Wusel-Crew")
-    
-    # --- 1. Offene Anfragen (Neu!) ---
-    anfragen = hole_crew_anfragen(st.session_state.user)
-    if anfragen:
-        with st.expander(f"🔔 Du hast {len(anfragen)} neue Crew-Anfragen!", expanded=True):
-            for absender in anfragen:
-                c1, c2, c3 = st.columns([2, 1, 1])
-                c1.write(f"**{absender}** möchte in deine Crew.")
-                if c2.button("✅ Ja", key=f"yes_{absender}"):
-                    if bestaetige_anfrage(absender, st.session_state.user):
-                        st.success("Bestätigt!"); st.rerun()
-                if c3.button("❌ Nein", key=f"no_{absender}"):
-                    if lehne_anfrage_ab(absender, st.session_state.user):
-                        st.rerun()
-        st.divider()
+# --- NEUE CREW LOGIK ---
 
-    # --- 2. Neue Leute suchen ---
-    with st.expander("🔍 Neue Leute zur Crew hinzufügen"):
-        suche = st.text_input("Nutzername eingeben").strip()
-        if st.button("Anfrage senden"):
-            df_u = hole_df("nutzer")
-            if suche.lower() in df_u['benutzername'].str.lower().values:
-                if suche.lower() != st.session_state.user.lower():
-                    if fuege_freund_hinzu(st.session_state.user, suche):
-                        st.info(f"Anfrage an {suche} wurde gesendet! Warte auf Bestätigung.")
-                else: st.warning("Das bist du selbst!")
-            else: st.error("Nutzer nicht gefunden.")
-    
-    st.divider()
+def fuege_freund_hinzu(nutzer, freund_name):
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = "INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'offen')"
+    try:
+        cursor.execute(sql, (nutzer, freund_name))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
 
-    # --- 3. Liste der bestätigten Crew-Mitglieder ---
-    crew = hole_freundesliste(st.session_state.user)
-    if crew:
-        st.write("Deine Crew:")
-        for f in crew:
-            c1, c2 = st.columns([3, 1])
-            with c1: st.write(f"🧗 **{f}**")
-            with c2:
-                if st.button("📩 Funk", key=f"btn_{f}"):
-                    st.session_state.msg_target = f
-                    st.info(f"Geh zum Tab 'Wuselfunk' um {f} zu schreiben.")
-    else:
-        st.caption("Deine Crew ist noch leer oder wartet auf Bestätigungen.")
+def hole_freundesliste(nutzer):
+    conn = get_db_connection()
+    if conn is None: return []
+    try:
+        df = pd.read_sql(f"SELECT freund FROM freunde WHERE nutzer = '{nutzer}' AND status = 'bestätigt'", conn)
+        return df['freund'].tolist() if not df.empty else []
+    finally: conn.close()
+
+def hole_crew_anfragen(nutzername):
+    conn = get_db_connection()
+    if conn is None: return []
+    try:
+        df = pd.read_sql(f"SELECT nutzer FROM freunde WHERE freund = '{nutzername}' AND status = 'offen'", conn)
+        return df['nutzer'].tolist() if not df.empty else []
+    finally: conn.close()
+
+def bestaetige_anfrage(absender, ich):
+    conn = get_db_connection(); cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE freunde SET status = 'bestätigt' WHERE nutzer = %s AND freund = %s", (absender, ich))
+        cursor.execute("INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'bestätigt')", (ich, absender))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def lehne_anfrage_ab(absender, ich):
+    conn = get_db_connection(); cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM freunde WHERE nutzer = %s AND freund = %s", (absender, ich))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
