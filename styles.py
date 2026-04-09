@@ -52,19 +52,35 @@ def apply_custom_css():
         }
         .stTabs [aria-selected="true"] { background-color: #ff8c00 !important; }
 
-        /* 7. EXPANDER (Der Balken für die Crew-Anfragen) */
+        /* 7. EXPANDER (Der Balken für die Crew-Anfragen & Suche) */
+        /* Den kompletten Balken-Hintergrund auf Blau setzen */
         div[data-testid="stExpander"] {
             background-color: #001f3f !important;
             border: 1px solid #004a99 !important;
             border-radius: 8px !important;
+            margin-bottom: 1rem !important;
         }
-        div[data-testid="stExpander"] p {
-            color: white !important;
-        }
-        /* Den Header-Bereich des Expanders blau machen */
-        summary[aria-expanded] {
+
+        /* Den Header (den klickbaren Teil) explizit einfärben */
+        div[data-testid="stExpander"] summary {
             background-color: #001f3f !important;
             color: white !important;
+        }
+
+        /* Text im Header weiß machen */
+        div[data-testid="stExpander"] summary p {
+            color: white !important;
+        }
+
+        /* Den Pfeil weiß machen */
+        div[data-testid="stExpander"] summary svg {
+            fill: white !important;
+        }
+
+        /* Hover-Effekt für den Balken (wird Orange) */
+        div[data-testid="stExpander"] summary:hover {
+            background-color: #004a99 !important;
+            border-radius: 8px !important;
         }
         </style>
     """, unsafe_allow_html=True)
