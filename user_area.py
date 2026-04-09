@@ -41,8 +41,8 @@ def show_user_area():
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
                     with col_r:
-                        # FIX: Style auf "open-street-map" geändert für Farbe
                         fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
+                        # FIX: Hier wurde mapbox_style auf "open-street-map" geändert
                         fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
                         st.plotly_chart(fig, use_container_width=True)
                 else: st.warning("Keine Spots im Umkreis gefunden.")
