@@ -7,7 +7,6 @@ import requests
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
 from messaging import show_wuselfunk, show_wusel_crew 
 
-# Hilfsfunktion für die Distanz
 def distanz(lat1, lon1, lat2, lon2):
     R = 6371
     dlat, dlon = np.radians(lat2-lat1), np.radians(lon2-lon1)
@@ -15,29 +14,6 @@ def distanz(lat1, lon1, lat2, lon2):
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
 def show_user_area():
-    # --- CSS FIX FÜR DEN BILD-BUTTON (Vergrößern) ---
-    st.markdown("""
-        <style>
-        /* Erwischt den weißen Button über dem Bild */
-        button[data-testid="stImageFullScreenBtn"] {
-            background-color: #001f3f !important; /* Dunkelblau */
-            border: 1px solid #004a99 !important;
-            color: white !important;
-            border-radius: 4px !important;
-        }
-        /* Icon im Button weiß färben */
-        button[data-testid="stImageFullScreenBtn"] svg {
-            fill: white !important;
-            color: white !important;
-        }
-        /* Hover-Effekt: Wird orange */
-        button[data-testid="stImageFullScreenBtn"]:hover {
-            background-color: #ff8c00 !important;
-            border-color: #ff8c00 !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
     st.subheader("📍 Kletter-Spots in deiner Nähe")
     c1, c2 = st.columns([3, 1])
     with c1: adr = st.text_input("Wo suchst du?", "Varel")
@@ -64,18 +40,14 @@ def show_user_area():
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
                                 
-                                # --- WETTER-FIX: Celsius erzwingen & Encoding säubern ---
                                 try:
                                     stadt_w = r['stadt'].replace(" ", "+")
-                                    # Wir nutzen ein schlichteres Format, um Zeichensalat zu vermeiden
                                     w_res = requests.get(f"https://wttr.in/{stadt_w}?format=%c+%t&m", timeout=2)
                                     if w_res.status_code == 200:
-                                        # Sauberes Decoding für Umlaute/Sonderzeichen
                                         wetter_text = w_res.content.decode('utf-8').replace("Â", "")
                                         st.info(f"Wetter aktuell: {wetter_text}")
                                 except:
                                     pass 
-                                # -------------------------------------------------------
 
                     with col_r:
                         fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
@@ -89,24 +61,6 @@ def show_user_area():
         else: st.error("Adresse nicht gefunden.")
 
 def show_proposal_area():
-    st.markdown("""
-        <style>
-        [data-testid="stFileUploader"] section button {
-            background-color: #ff8c00 !important;
-            color: white !important;
-            border: none !important;
-        }
-        [data-testid="stFileUploadDropzone"] {
-            background-color: #001f3f !important;
-            color: white !important;
-            border: 2px dashed #004a99 !important;
-        }
-        [data-testid="stFileUploadDropzone"] div div span {
-            color: white !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    
     st.subheader("💡 Spot vorschlagen")
     with st.form("v_form", clear_on_submit=True):
         v_n = st.text_input("Name des Spots*")
