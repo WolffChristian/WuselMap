@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
+import requests  # Neu für die Wetter-Abfrage
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
 from messaging import show_wuselfunk, show_wusel_crew 
 
@@ -39,8 +40,19 @@ def show_user_area():
                                 if r.get('bild_data'): 
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
+                                
+                                # --- NEU: Wetter-Integration ---
+                                try:
+                                    stadt_w = r['stadt'].replace(" ", "+")
+                                    # Abfrage an wttr.in für eine kompakte Wetterzeile
+                                    w_res = requests.get(f"https://wttr.in/{stadt_w}?format=1", timeout=2)
+                                    if w_res.status_code == 200:
+                                        st.info(f"☀️ **Wetter aktuell:** {w_res.text}")
+                                except:
+                                    pass # Falls der Wetterdienst nicht erreichbar ist, bleibt die App stabil
+                                # ------------------------------
+
                     with col_r:
-                        # FIX: Karte in Farbe und richtig eingerückt
                         fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
                         fig.update_layout(
                             mapbox_style="open-street-map", 
@@ -52,22 +64,18 @@ def show_user_area():
         else: st.error("Adresse nicht gefunden.")
 
 def show_proposal_area():
-    # FIX: Upload-Button orange & Feld dunkelblau mit weißer Schrift
     st.markdown("""
         <style>
-        /* Der Button */
         [data-testid="stFileUploader"] section button {
             background-color: #ff8c00 !important;
             color: white !important;
             border: none !important;
         }
-        /* Das ehemals weiße Feld (Dropzone) */
         [data-testid="stFileUploadDropzone"] {
             background-color: #001f3f !important;
             color: white !important;
             border: 2px dashed #004a99 !important;
         }
-        /* Text im Feld weiß machen */
         [data-testid="stFileUploadDropzone"] div div span {
             color: white !important;
         }
