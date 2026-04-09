@@ -10,7 +10,7 @@ def apply_custom_css():
         /* 2. TEXT & ÜBERSCHRIFTEN */
         h1, h2, h3, p, span, label { color: #ffffff !important; }
 
-        /* 3. BUTTONS (Standard & Einsenden) - ZURÜCK AUF BLAU */
+        /* 3. BUTTONS (Standard & Einsenden) */
         div.stButton > button, 
         button[kind="primaryFormSubmit"], 
         button[kind="secondaryFormSubmit"] {
@@ -22,7 +22,7 @@ def apply_custom_css():
             width: 100% !important;
         }
 
-        /* 4. SPEZIELL: DATEI-UPLOAD (Bleibt wie gewünscht) */
+        /* 4. DATEI-UPLOAD (Feld & Button) */
         [data-testid="stFileUploader"] section {
             background-color: #001f3f !important;
             border: 2px dashed #004a99 !important;
@@ -51,23 +51,23 @@ def apply_custom_css():
             border: 2px solid #004a99 !important;
         }
         .stTabs [aria-selected="true"] { background-color: #ff8c00 !important; }
-        </style>
-    """, unsafe_allow_html=True)
 
-# --- Füge das in die styles.py unter Punkt 6 (TABS) ein ---
-
-        /* 7. EXPANDER (Der "Balken" für Anfragen) */
-        .streamlit-expanderHeader {
+        /* 7. EXPANDER (Der Balken für die Crew-Anfragen) */
+        div[data-testid="stExpander"] {
             background-color: #001f3f !important;
-            color: white !important;
             border: 1px solid #004a99 !important;
             border-radius: 8px !important;
         }
-        .streamlit-expanderContent {
-            background-color: #001220 !important;
+        div[data-testid="stExpander"] p {
             color: white !important;
-            border: 1px solid #004a99 !important;
         }
+        /* Den Header-Bereich des Expanders blau machen */
+        summary[aria-expanded] {
+            background-color: #001f3f !important;
+            color: white !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
 def show_header():
     c1, c2, c3 = st.columns([1, 4, 1])
