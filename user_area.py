@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
-import requests  # Neu für die Wetter-Abfrage
+import requests
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
 from messaging import show_wuselfunk, show_wusel_crew 
 
@@ -41,16 +41,18 @@ def show_user_area():
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
                                 
-                                # --- NEU: Wetter-Integration ---
+                                # --- WETTER-FIX: Celsius & Encoding ---
                                 try:
                                     stadt_w = r['stadt'].replace(" ", "+")
-                                    # Abfrage an wttr.in für eine kompakte Wetterzeile
-                                    w_res = requests.get(f"https://wttr.in/{stadt_w}?format=1", timeout=2)
+                                    # ?m erzwingt metrisches System (Celsius)
+                                    w_res = requests.get(f"https://wttr.in/{stadt_w}?format=1&m", timeout=2)
                                     if w_res.status_code == 200:
-                                        st.info(f"☀️ **Wetter aktuell:** {w_res.text}")
+                                        # UTF-8 Decoding verhindert den Zeichensalat
+                                        wetter_text = w_res.content.decode('utf-8')
+                                        st.info(f"☀️ **Wetter aktuell:** {wetter_text}")
                                 except:
-                                    pass # Falls der Wetterdienst nicht erreichbar ist, bleibt die App stabil
-                                # ------------------------------
+                                    pass 
+                                # --------------------------------------
 
                     with col_r:
                         fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
@@ -127,11 +129,6 @@ def show_profile_area():
             if st.form_submit_button("Speichern"):
                 aktualisiere_profil(st.session_state.user, ne, nv, nn, na, emo)
                 st.success("Daten aktualisiert!"); st.rerun()
-        
-        st.divider()
-        if st.button("🚪 Logout", use_container_width=True):
-            st.query_params.clear()
-            st.session_state.logged_in = False; st.rerun()
 
     with sub_tabs[1]: show_user_area()
     with sub_tabs[2]: show_proposal_area()
@@ -149,6 +146,13 @@ def show_feedback_area():
 def show_legal_area():
     st.title("📄 Rechtliches & Sicherheit")
     legal_tabs = st.tabs(["⚖️ Impressum", "🔒 Datenschutz", "🛡️ Jugendschutz"])
-    with legal_tabs[0]: st.write("**Verantwortlich:** Christian Wolff")
-    with legal_tabs[1]: st.write("Datenschutz-Infos...")
-    with legal_tabs[2]: st.write("Jugendschutz-Infos...")
+    with legal_tabs[0]: 
+        st.write("**Verantwortlich:** Christian Wolff")
+        st.write("Anschrift: [Deine Straße, PLZ Ort]")
+        st.write("Kontakt: info@wuselmap.de")
+    with legal_tabs[1]: 
+        st.write("**Datenschutzerklärung**")
+        st.write("Wir speichern Passwörter nur als sichere Hash-Werte. Eure Daten werden nicht an Dritte weitergegeben.")
+    with legal_tabs[2]: 
+        st.write("**Jugendschutz**")
+        st.write("Die Nutzung der Kletter-Spots erfolgt auf eigene Gefahr. Eltern haften für ihre Kinder.")
