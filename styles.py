@@ -52,35 +52,49 @@ def apply_custom_css():
         }
         .stTabs [aria-selected="true"] { background-color: #ff8c00 !important; }
 
-        /* 7. EXPANDER (Der Balken für die Crew-Anfragen & Suche) */
-        /* Den kompletten Balken-Hintergrund auf Blau setzen */
+        /* 7. EXPANDER */
         div[data-testid="stExpander"] {
             background-color: #001f3f !important;
             border: 1px solid #004a99 !important;
             border-radius: 8px !important;
             margin-bottom: 1rem !important;
         }
-
-        /* Den Header (den klickbaren Teil) explizit einfärben */
         div[data-testid="stExpander"] summary {
             background-color: #001f3f !important;
             color: white !important;
         }
-
-        /* Text im Header weiß machen */
         div[data-testid="stExpander"] summary p {
             color: white !important;
         }
-
-        /* Den Pfeil weiß machen */
         div[data-testid="stExpander"] summary svg {
             fill: white !important;
         }
-
-        /* Hover-Effekt für den Balken (wird Orange) */
         div[data-testid="stExpander"] summary:hover {
             background-color: #004a99 !important;
             border-radius: 8px !important;
+        }
+
+        /* 8. FIX: BILD-VERGRÖSSERN BUTTON (Vollbild-Icon) */
+        /* Wir zwingen den Button in unser Farbschema */
+        button[data-testid="stImageFullScreenBtn"] {
+            background-color: #004a99 !important;
+            color: white !important;
+            border: 1px solid #ffffff !important;
+            border-radius: 5px !important;
+            right: 10px !important;
+            top: 10px !important;
+        }
+        
+        /* Das Icon im Button weiß machen */
+        button[data-testid="stImageFullScreenBtn"] svg {
+            fill: white !important;
+            color: white !important;
+        }
+
+        /* Hover-Effekt: Der Button wird orange */
+        button[data-testid="stImageFullScreenBtn"]:hover {
+            background-color: #ff8c00 !important;
+            border-color: #ff8c00 !important;
         }
         </style>
     """, unsafe_allow_html=True)
