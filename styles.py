@@ -75,23 +75,28 @@ def apply_custom_css():
         }
 
         /* 8. FIX: BILD-VERGRÖSSERN BUTTON (Vollbild-Icon) */
-        /* Wir zwingen den Button in unser Farbschema */
-        button[data-testid="stImageFullScreenBtn"] {
+        /* Wir greifen den Button über JEDE mögliche Kennung an */
+        div[data-testid="stImage"] button,
+        button[data-testid="stImageFullScreenBtn"],
+        button[title="Enlarge image"] {
             background-color: #004a99 !important;
             color: white !important;
-            border: 1px solid #ffffff !important;
-            border-radius: 5px !important;
-            right: 10px !important;
-            top: 10px !important;
+            border: 2px solid #ffffff !important;
+            border-radius: 8px !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
         
-        /* Das Icon im Button weiß machen */
+        /* Das Icon im Button ZWINGEND weiß machen */
+        div[data-testid="stImage"] button svg,
         button[data-testid="stImageFullScreenBtn"] svg {
             fill: white !important;
+            stroke: white !important;
             color: white !important;
         }
 
         /* Hover-Effekt: Der Button wird orange */
+        div[data-testid="stImage"] button:hover,
         button[data-testid="stImageFullScreenBtn"]:hover {
             background-color: #ff8c00 !important;
             border-color: #ff8c00 !important;
