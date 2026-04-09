@@ -54,6 +54,21 @@ def apply_custom_css():
         </style>
     """, unsafe_allow_html=True)
 
+# --- Füge das in die styles.py unter Punkt 6 (TABS) ein ---
+
+        /* 7. EXPANDER (Der "Balken" für Anfragen) */
+        .streamlit-expanderHeader {
+            background-color: #001f3f !important;
+            color: white !important;
+            border: 1px solid #004a99 !important;
+            border-radius: 8px !important;
+        }
+        .streamlit-expanderContent {
+            background-color: #001220 !important;
+            color: white !important;
+            border: 1px solid #004a99 !important;
+        }
+
 def show_header():
     c1, c2, c3 = st.columns([1, 4, 1])
     with c2:
