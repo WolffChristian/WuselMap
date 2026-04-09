@@ -7,14 +7,30 @@ from admin_area import show_admin_area
 def main():
     apply_custom_css()
     show_header()
-# Beta-Hinweis für alle Nutzer
+    
+    # Beta-Hinweis
     st.warning("⚠️ **WuselMap Beta:** Wir optimieren gerade die Funktionen. Fehler bitte an info@wuselmap.de melden! 🧗‍♂️")
-    # Session State initialisieren
-    if 'logged_in' not in st.session_state:
-        st.session_state.logged_in = False
-    if 'auth_mode' not in st.session_state:
-        st.session_state.auth_mode = "login" # Startet standardmäßig beim Login
 
+    # --- PERSISTENZ-LOGIK (Wieder-Einloggen beim Refresh) ---
+    if 'logged_in' not in st.session_state:
+        # Prüfen, ob ein Nutzer in der URL steht
+        if "user" in st.query_params:
+            u_name = st.query_params["user"]
+            df = hole_df("nutzer")
+            if not df.empty and u_name in df['benutzername'].values:
+                # Automatisch wieder einloggen
+                st.session_state.logged_in = True
+                st.session_state.user = u_name
+                st.session_state.role = df[df['benutzername'] == u_name]['rolle'].values[0]
+            else:
+                st.session_state.logged_in = False
+        else:
+            st.session_state.logged_in = False
+
+    if 'auth_mode' not in st.session_state:
+        st.session_state.auth_mode = "login"
+
+    # Navigation
     if not st.session_state.logged_in:
         if st.session_state.auth_mode == "login":
             show_login_page()
@@ -33,9 +49,11 @@ def show_login_page():
             if not df.empty and u in df['benutzername'].values:
                 pw_hash = df[df['benutzername'] == u]['passwort'].values[0]
                 if pw_hash == hash_passwort(p):
+                    # Login in Session UND URL speichern
                     st.session_state.logged_in = True
                     st.session_state.user = u
                     st.session_state.role = df[df['benutzername'] == u]['rolle'].values[0]
+                    st.query_params["user"] = u # Hier passiert die Magie!
                     st.rerun()
                 else: st.error("Passwort falsch.")
             else: st.error("Nutzer nicht gefunden.")
@@ -70,7 +88,6 @@ def show_registration_page():
         st.rerun()
 
 def show_main_app():
-    # Menüführung für eingeloggte Nutzer
     menu = ["👤 Mein Bereich", "💬 Feedback", "📄 Rechtliches"]
     if st.session_state.role == 'admin':
         menu.append("🛠️ Admin")
