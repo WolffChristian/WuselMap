@@ -157,12 +157,19 @@ def hole_crew_anfragen(nutzername):
     finally: conn.close()
 
 def bestaetige_anfrage(absender, ich):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
     try:
+        # 1. Den Eintrag, den der andere erstellt hat, auf bestätigt setzen
         cursor.execute("UPDATE freunde SET status = 'bestätigt' WHERE nutzer = %s AND freund = %s", (absender, ich))
+        # 2. Den Gegeneintrag für dich erstellen
         cursor.execute("INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'bestätigt')", (ich, absender))
-        conn.commit(); return True
-    except: return False
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"SQL-Fehler beim Bestätigen: {e}") # Das zeigt uns jetzt genau, was fehlt!
+        return False
     finally: cursor.close(); conn.close()
 
 def lehne_anfrage_ab(absender, ich):
