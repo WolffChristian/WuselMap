@@ -40,21 +40,36 @@ def show_user_area():
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 st.write(f"**Ort:** {r['stadt']}")
                     with col_r:
-                        # FIX: Style auf "open-street-map" für Farbe
+                        # FIX: Karte in Farbe und richtig eingerückt
                         fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
-                        fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, mapbox_center={"lat": slat, "lon": slon})
+                        fig.update_layout(
+                            mapbox_style="open-street-map", 
+                            margin={"r":0,"t":0,"l":0,"b":0},
+                            mapbox_center={"lat": slat, "lon": slon}
+                        )
                         st.plotly_chart(fig, use_container_width=True)
                 else: st.warning("Keine Spots im Umkreis gefunden.")
         else: st.error("Adresse nicht gefunden.")
 
 def show_proposal_area():
-    # FIX: CSS für den Upload-Button (direkt in der Funktion)
+    # FIX: Upload-Button orange & Feld dunkelblau mit weißer Schrift
     st.markdown("""
         <style>
+        /* Der Button */
         [data-testid="stFileUploader"] section button {
             background-color: #ff8c00 !important;
             color: white !important;
-            border: 1px solid #ff8c00 !important;
+            border: none !important;
+        }
+        /* Das ehemals weiße Feld (Dropzone) */
+        [data-testid="stFileUploadDropzone"] {
+            background-color: #001f3f !important;
+            color: white !important;
+            border: 2px dashed #004a99 !important;
+        }
+        /* Text im Feld weiß machen */
+        [data-testid="stFileUploadDropzone"] div div span {
+            color: white !important;
         }
         </style>
     """, unsafe_allow_html=True)
