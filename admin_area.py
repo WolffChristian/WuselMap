@@ -14,7 +14,9 @@ def show_admin_area():
                 v_id = r.get('id', i)
                 with st.container(border=True):
                     st.markdown(f"### 📍 {r.get('standort', 'Unbekannt')}")
-                    col_text, col_img = st.columns([1, 1])
+                    # Spalten angepasst: Text bekommt mehr Platz (3), Bild weniger (1)
+                    col_text, col_img = st.columns([3, 1]) 
+                    
                     with col_text:
                         st.write(f"**Stadt:** {r.get('stadt')}")
                         st.write(f"**Adresse:** {r.get('adresse')}")
@@ -35,9 +37,12 @@ def show_admin_area():
                                 if loesche_vorschlag(v_id):
                                     st.info("Vorschlag wurde gelöscht.")
                                     st.rerun()
+                                    
                     with col_img:
                         if r.get('bild_data'):
-                            st.image(f"data:image/jpeg;base64,{r.get('bild_data')}", use_container_width=True)
+                            # FIX: Bild in Expander und mit fester Breite
+                            with st.expander("🖼️ Bild prüfen"):
+                                st.image(f"data:image/jpeg;base64,{r.get('bild_data')}", width=250)
         else:
             st.info("☕ Keine neuen Vorschläge vorhanden. Zeit für einen Kaffee!")
 
