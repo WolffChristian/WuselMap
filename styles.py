@@ -11,12 +11,13 @@ def apply_custom_css():
         h1, h2, h3 { color: #ffffff !important; text-align: center; }
         p, span, label, .stMarkdown { color: #ffffff !important; }
 
-        /* 3. BUTTONS (Blau mit weißem Text / Orange mit weißem Text) */
+        /* 3. BUTTONS (Standard & Datei-Upload) */
         div.stButton > button, 
         button[kind="primaryFormSubmit"], 
-        button[kind="secondaryFormSubmit"] {
+        button[kind="secondaryFormSubmit"],
+        [data-testid="stFileUploader"] section button {
             background-color: #004a99 !important;
-            color: white !important; /* IMMER WEISS */
+            color: white !important;
             border-radius: 10px !important;
             border: 1px solid #005fcc !important;
             font-weight: 800 !important;
@@ -24,23 +25,29 @@ def apply_custom_css():
             transition: 0.3s;
         }
 
-        /* Hover & Aktiv (Orange mit weißem Text) */
+        /* Datei-Upload Button spezifisch (damit er nicht weiß bleibt) */
+        [data-testid="stFileUploader"] section button {
+            background-color: #ff8c00 !important;
+            border-color: #ff8c00 !important;
+        }
+
+        /* Hover & Aktiv */
         div.stButton > button:hover, 
         div.stButton > button:active,
         div.stButton > button:focus,
-        button[kind="primaryFormSubmit"]:hover {
+        button[kind="primaryFormSubmit"]:hover,
+        [data-testid="stFileUploader"] section button:hover {
             background-color: #ff8c00 !important;
-            color: white !important; /* BLEIBT WEISS */
+            color: white !important;
             border-color: #ff8c00 !important;
             box-shadow: 0 4px 15px rgba(255, 140, 0, 0.3) !important;
         }
 
-        /* 4. TABELLEN (HOCH-KONTRAST) */
+        /* 4. TABELLEN */
         [data-testid="stTable"], .stTable {
             background-color: #001f3f !important;
             color: white !important;
         }
-        /* Zellen-Text in Tabellen explizit weiß machen */
         [data-testid="stTable"] td, [data-testid="stTable"] th {
             color: white !important;
             background-color: #001f3f !important;
