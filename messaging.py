@@ -65,17 +65,31 @@ def show_wusel_crew():
                         st.rerun()
         st.divider()
 
-    # 2. Nutzer suchen
+    # 2. Verbesserte Suche (Nutzername ODER echter Name)
     with st.expander("🔍 Neue Leute zur Crew hinzufügen"):
-        suche = st.text_input("Nutzername eingeben").strip()
+        suche = st.text_input("Name oder Nutzername eingeben").strip().lower()
         if st.button("Anfrage senden"):
             df_u = hole_df("nutzer")
-            if suche.lower() in df_u['benutzername'].str.lower().values:
-                if suche.lower() != st.session_state.user.lower():
-                    if fuege_freund_hinzu(st.session_state.user, suche):
-                        st.info(f"Anfrage an {suche} wurde gesendet!")
-                else: st.warning("Das bist du selbst!")
-            else: st.error("Nutzer nicht gefunden.")
+            if not df_u.empty:
+                # Wir suchen in allen Namens-Spalten
+                df_u['voller_name'] = df_u['vorname'].str.lower() + " " + df_u['nachname'].str.lower()
+                
+                match = df_u[
+                    (df_u['benutzername'].str.lower() == suche) | 
+                    (df_u['vorname'].str.lower() == suche) | 
+                    (df_u['nachname'].str.lower() == suche) |
+                    (df_u['voller_name'] == suche)
+                ]
+                
+                if not match.empty:
+                    gefunden_un = match.iloc[0]['benutzername']
+                    vorname = match.iloc[0]['vorname']
+                    
+                    if gefunden_un != st.session_state.user.lower():
+                        if fuege_freund_hinzu(st.session_state.user, gefunden_un):
+                            st.info(f"Anfrage an {vorname} ({gefunden_un}) wurde gesendet!")
+                    else: st.warning("Das bist du selbst!")
+                else: st.error("Niemanden unter diesem Namen gefunden.")
     
     st.divider()
 
