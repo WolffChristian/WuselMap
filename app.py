@@ -7,7 +7,8 @@ from admin_area import show_admin_area
 def main():
     apply_custom_css()
     show_header()
-
+# Beta-Hinweis für alle Nutzer
+    st.warning("⚠️ **WuselMap Beta:** Wir optimieren gerade die Funktionen. Fehler bitte an info@wuselmap.de melden! 🧗‍♂️")
     # Session State initialisieren
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
