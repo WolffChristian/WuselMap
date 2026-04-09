@@ -1,8 +1,10 @@
 import streamlit as st
 from database_manager import hole_df, hash_passwort, registriere_nutzer
 from styles import apply_custom_css, show_header
-from user_area import show_profile_area, show_feedback_area, show_legal_area
+from user_area import show_profile_area, show_feedback_area # show_legal_area hier entfernt!
 from admin_area import show_admin_area
+from legal_area import show_legal_area # Das ist jetzt die einzige Quelle
+
 
 def main():
     apply_custom_css()
@@ -11,14 +13,12 @@ def main():
     # Beta-Hinweis
     st.warning("⚠️ **WuselMap Beta:** Wir optimieren gerade die Funktionen. Fehler bitte an info@wuselmap.de melden! 🧗‍♂️")
 
-    # --- PERSISTENZ-LOGIK (Wieder-Einloggen beim Refresh) ---
+    # --- PERSISTENZ-LOGIK ---
     if 'logged_in' not in st.session_state:
-        # Prüfen, ob ein Nutzer in der URL steht
         if "user" in st.query_params:
             u_name = st.query_params["user"]
             df = hole_df("nutzer")
             if not df.empty and u_name in df['benutzername'].values:
-                # Automatisch wieder einloggen
                 st.session_state.logged_in = True
                 st.session_state.user = u_name
                 st.session_state.role = df[df['benutzername'] == u_name]['rolle'].values[0]
@@ -49,11 +49,10 @@ def show_login_page():
             if not df.empty and u in df['benutzername'].values:
                 pw_hash = df[df['benutzername'] == u]['passwort'].values[0]
                 if pw_hash == hash_passwort(p):
-                    # Login in Session UND URL speichern
                     st.session_state.logged_in = True
                     st.session_state.user = u
                     st.session_state.role = df[df['benutzername'] == u]['rolle'].values[0]
-                    st.query_params["user"] = u # Hier passiert die Magie!
+                    st.query_params["user"] = u
                     st.rerun()
                 else: st.error("Passwort falsch.")
             else: st.error("Nutzer nicht gefunden.")
@@ -100,6 +99,13 @@ def show_main_app():
     
     if st.session_state.role == 'admin':
         with choice[3]: show_admin_area()
+
+    # --- ZENTRALER LOGOUT (Wichtig!) ---
+    st.divider()
+    if st.button("🚪 Logout", use_container_width=True):
+        st.query_params.clear()
+        st.session_state.logged_in = False
+        st.rerun()
 
 if __name__ == "__main__":
     main()
