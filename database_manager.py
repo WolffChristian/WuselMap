@@ -47,6 +47,8 @@ def hole_df(tabelle="spielplaetze"):
         return df
     finally: conn.close()
 
+# --- NUTZER FUNKTIONEN ---
+
 def registriere_nutzer(un, pw, em, vn, nn, al, agb):
     conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
@@ -66,9 +68,7 @@ def aktualisiere_profil(un, em, vn, nn, al, emo):
     finally: cursor.close(); conn.close()
 
 def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
-    conn = get_db_connection()
-    if not conn: return False
-    cursor = conn.cursor()
+    conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO vorschlaege (standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
     try:
         cursor.execute(sql, (n, ad, al, bund, plz, stadt, bild, ds))
@@ -83,6 +83,37 @@ def sende_feedback(us, ms):
         cursor.execute(sql, (us, ms)); conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
+
+# --- ADMIN FUNKTIONEN (Wieder hergestellt) ---
+
+def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = """INSERT INTO spielplaetze 
+             (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) 
+             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+    try:
+        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def loesche_vorschlag(v_id):
+    conn = get_db_connection(); cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM vorschlaege WHERE id = %s", (v_id,))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def loesche_feedback(f_id):
+    conn = get_db_connection(); cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM feedback WHERE id = %s", (f_id,))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+# --- MESSAGING & CREW LOGIK ---
 
 def sende_nachricht(von, an, text):
     conn = get_db_connection(); cursor = conn.cursor()
@@ -99,8 +130,6 @@ def hole_nachrichten(nutzername):
     try:
         return pd.read_sql(f"SELECT * FROM nachrichten WHERE an_nutzer = '{nutzername}' ORDER BY zeitpunkt DESC", conn)
     finally: conn.close()
-
-# --- NEUE CREW LOGIK ---
 
 def fuege_freund_hinzu(nutzer, freund_name):
     conn = get_db_connection(); cursor = conn.cursor()
