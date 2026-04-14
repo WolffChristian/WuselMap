@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
-import requests
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
 from messaging import show_wuselfunk, show_wusel_crew, show_spielplatzfunk
 
@@ -111,19 +110,17 @@ def show_proposal_area():
     """Bereich zum Vorschlagen neuer Spots per smarter Adresssuche"""
     st.subheader("💡 Neuen Spot vorschlagen")
     
-    st.markdown("""
-    **Profi-Tipp:** Für Parks oder große Plätze kannst du auch Kreuzungen angeben, 
-    z. B. *Hauptstraße & Nebenstraße*. Das ist genauer als nur eine Hausnummer!
-    """)
+    st.info("Kein GPS nötig! Gib einfach die Adresse oder eine Kreuzung ein. Unser System findet den Punkt.")
 
     with st.form("v_form", clear_on_submit=True):
         v_n = st.text_input("Name des Spielplatzes*", placeholder="z.B. Abenteuerspielplatz Stadtpark")
         
-        # Geänderter Hinweis für Kreuzungen
-        v_s = st.text_input("Straße & Hausnr. oder Kreuzung*", placeholder="z.B. Mühlenweg & Gartenstraße")
+        v_s = st.text_input("Straße & Hausnr. oder Kreuzung*")
+        st.caption("Beispiel: _Mühlenweg 10_ oder _Schloßplatz & Gartenstraße_")
         
-        # Stadt-Feld jetzt standardmäßig leer
+        # Stadt-Feld ist standardmäßig leer
         v_st = st.text_input("Stadt*") 
+        st.caption("Beispiel: _Varel_ oder _Oldenburg_")
         
         v_bund = st.selectbox("Bundesland*", ["Niedersachsen", "Bremen", "Hamburg", "Schleswig-Holstein", "Nordrhein-Westfalen"])
         v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
@@ -137,13 +134,19 @@ def show_proposal_area():
         v_wc = c3.checkbox("🚽 Toilette")
         
         st.write("---")
-        v_img = st.file_uploader("Foto hochladen", type=["jpg", "png", "jpeg"])
+        v_img = st.file_uploader("Foto hochladen (optional)", type=["jpg", "png", "jpeg"])
         ds = st.checkbox("Keine Personen auf dem Foto erkennbar*")
         
         if st.form_submit_button("Spot jetzt einsenden", use_container_width=True):
-            if v_n and v_s and v_st and ds:
+            # Präzise Prüfung der Pflichtfelder
+            errors = []
+            if not v_n.strip(): errors.append("Name des Spielplatzes")
+            if not v_s.strip(): errors.append("Straße/Kreuzung")
+            if not v_st.strip(): errors.append("Stadt")
+            if not ds: errors.append("Datenschutz-Häkchen")
+            
+            if not errors:
                 gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-                # Der Geocoder erkennt das '&' automatisch als Kreuzung
                 res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
                 
                 if res:
@@ -154,11 +157,12 @@ def show_proposal_area():
                     ausst_str = ", ".join(ausst_list)
                     
                     if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, v_bund, "00000", v_st, bild_data, 1, ausst_str, 1 if v_schatten else 0, 1 if v_sitze else 0, 1 if v_wc else 0, f_lat, f_lon):
-                        st.success(f"Top! '{v_n}' wurde am Punkt '{v_s}' lokalisiert.")
+                        st.success(f"✅ Top! '{v_n}' wurde erfolgreich gespeichert.")
+                        st.balloons()
                 else:
-                    st.error("Adresse oder Kreuzung nicht gefunden. Bitte prüfen!")
+                    st.error("📍 Adresse oder Kreuzung nicht gefunden. Bitte prüfen!")
             else:
-                st.warning("Bitte Name, Adresse, Stadt und Datenschutz ausfüllen!")
+                st.warning(f"⚠️ Bitte fülle noch aus: {', '.join(errors)}")
 
 def show_profile_area():
     """Das Profil-Dashboard mit allen Tabs"""
