@@ -3,15 +3,14 @@ import pandas as pd
 import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
-# WICHTIG: Das neue Tool muss installiert sein (pip install streamlit-geolocation)
-from streamlit_geolocation import streamlit_geolocation
+import requests
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
 from messaging import show_wuselfunk, show_wusel_crew, show_spielplatzfunk
 
 # --- HILFSFUNKTIONEN ---
 
 def distanz(lat1, lon1, lat2, lon2):
-    """Berechnet die Entfernung zwischen zwei Koordinaten in km"""
+    """Berechnet die Entfernung zwischen zwei Koordinaten in km (Haversine-Formel)"""
     R = 6371
     dlat, dlon = np.radians(lat2-lat1), np.radians(lon2-lon1)
     a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
@@ -45,10 +44,12 @@ def show_user_area():
             slat, slon = res[0]['geometry']['lat'], res[0]['geometry']['lng']
             
             if not df.empty:
+                # Koordinaten in Zahlen umwandeln für Berechnung
                 df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
                 df['lon'] = pd.to_numeric(df['lon'], errors='coerce')
                 df['distanz'] = df.apply(lambda r: distanz(slat, slon, r['lat'], r['lon']), axis=1)
                 
+                # Filtern nach Kriterien
                 final = df[df['distanz'] <= km]
                 final = final[final['altersfreigabe'].isin(alter_filter)]
                 if not show_maintenance:
@@ -57,6 +58,7 @@ def show_user_area():
                 final = final.sort_values('distanz')
 
                 if not final.empty:
+                    # Daten für Karte aufbereiten
                     final['Status'] = final['status'].apply(lambda x: "✅ AKTIV" if x == 'aktiv' else "⚠️ WARTUNG")
                     final['Ausstattung_Info'] = final['ausstattung'].apply(lambda x: x if x and str(x).lower() != 'none' else "Keine Angabe")
                     final['size'] = 15 
@@ -105,81 +107,72 @@ def show_user_area():
             else: st.info("Noch keine Spielplätze in der Datenbank.")
         else: st.error("Adresse konnte nicht gefunden werden.")
 
-import streamlit.components.v1 as components
-
 def show_proposal_area():
-    st.subheader("💡 Spot vorschlagen")
-
-    # 1. Das "Funkgerät" (JavaScript)
-    # Dieser Code fragt das Handy direkt ohne Umwege
-    gps_code = """
-    <script>
-    function getLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(showPosition, showError, {enableHighAccuracy: true});
-        } else { 
-            window.parent.postMessage({type: 'gps_error', msg: 'GPS nicht unterstützt'}, '*');
-        }
-    }
-    function showPosition(position) {
-        const coords = {
-            lat: position.coords.latitude,
-            lon: position.coords.longitude
-        };
-        window.parent.postMessage({type: 'gps_data', data: coords}, '*');
-    }
-    function showError(error) {
-        window.parent.postMessage({type: 'gps_error', msg: error.message}, '*');
-    }
-    </script>
-    <button onclick="getLocation()" style="
-        background-color: #4CAF50; 
-        color: white; 
-        padding: 15px 32px; 
-        border: none; 
-        border-radius: 8px; 
-        width: 100%;
-        font-size: 16px;
-        cursor: pointer;">
-        📍 MEINEN STANDORT JETZT FINDEN
-    </button>
-    """
+    """Bereich zum Vorschlagen neuer Spots per smarter Adresssuche"""
+    st.subheader("💡 Neuen Spot vorschlagen")
     
-    st.info("Klicke auf den grünen Button. Dein Handy sollte dich dann aktiv fragen.")
-    
-    # Hier fangen wir die Nachricht vom JavaScript ab
-    # Wir nutzen einen Trick: Ein verstecktes Feld oder Session State
-    components.html(gps_code, height=70)
+    st.markdown("""
+    Da Handy-GPS oft blockiert wird, nutzen wir unsere **automatische Standorterkennung**. 
+    Gib einfach Name und Adresse ein – unser System erledigt den Rest!
+    """)
 
-    # Wir nutzen hier den Standard-Weg für die Eingabe, falls JS nicht zündet
     with st.form("v_form", clear_on_submit=True):
-        v_n = st.text_input("Name des Spots*")
-        
-        st.write("---")
-        st.write("Falls der grüne Button oben keine Daten liefert, bitte hier tippen:")
-        v_s = st.text_input("Straße & Hausnummer")
+        v_n = st.text_input("Name des Spielplatzes*", placeholder="z.B. Piratenschiff im Stadtpark")
+        v_s = st.text_input("Straße & Hausnummer*", placeholder="z.B. Am Spielplatz 5")
         v_st = st.text_input("Stadt*", value="Varel")
+        v_p = st.text_input("PLZ (optional)")
         v_bund = st.selectbox("Bundesland*", ["Niedersachsen", "Bremen", "Hamburg", "Schleswig-Holstein", "Nordrhein-Westfalen"])
+        v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
         
         st.write("---")
-        ausst_list = st.multiselect("Was gibt es dort?", ["Rutsche", "Schaukel", "Seilbahn", "Klettergerüst", "Sandkasten", "Wippe", "Karussell"])
-        v_img = st.file_uploader("Foto hochladen", type=["jpg", "png", "jpeg"])
+        st.write("**Zusatzinfos:**")
+        ausst_list = st.multiselect("Ausstattung", ["Rutsche", "Schaukel", "Seilbahn", "Klettergerüst", "Sandkasten", "Wippe", "Karussell"])
+        
+        c1, c2, c3 = st.columns(3)
+        v_schatten = c1.checkbox("🌳 Schatten")
+        v_sitze = c2.checkbox("🪑 Sitzplätze")
+        v_wc = c3.checkbox("🚽 Toilette")
+        
+        st.write("---")
+        v_img = st.file_uploader("Foto hochladen (optional)", type=["jpg", "png", "jpeg"])
         ds = st.checkbox("Keine Personen auf dem Foto erkennbar*")
         
         if st.form_submit_button("Spot jetzt einsenden", use_container_width=True):
-            # Geocoding Fallback (Das Sicherheitsnetz)
-            gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-            res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
-            
-            if v_n and res and ds:
-                f_lat = res[0]['geometry']['lat']
-                f_lon = res[0]['geometry']['lng']
+            if v_n and v_s and v_st and ds:
+                # Geocoding: Adresse in Koordinaten umwandeln
+                gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+                res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
                 
-                bild_data = optimiere_bild(v_img)
-                if sende_vorschlag(v_n, v_s, "Alle", st.session_state.user, v_bund, "00000", v_st, bild_data, 1, ", ".join(ausst_list), 0, 0, 0, f_lat, f_lon):
-                    st.success(f"Super! '{v_n}' wurde über die Adresse erfasst.")
+                if res:
+                    f_lat = res[0]['geometry']['lat']
+                    f_lon = res[0]['geometry']['lng']
+                    
+                    # Doubletten-Check (Verhindert doppelte Einträge im Umkreis von 100m)
+                    existierende = hole_df("spielplaetze")
+                    is_double = False
+                    if not existierende.empty:
+                        for _, ex in existierende.iterrows():
+                            if distanz(f_lat, f_lon, float(ex['lat']), float(ex['lon'])) < 0.1:
+                                is_double = True
+                                break
+                    
+                    if is_double:
+                        st.error("🚨 An dieser Stelle existiert bereits ein Spielplatz!")
+                    else:
+                        bild_data = optimiere_bild(v_img)
+                        ausst_str = ", ".join(ausst_list)
+                        
+                        if sende_vorschlag(
+                            v_n, v_s, v_alt, st.session_state.user, v_bund, v_p or "00000", v_st, 
+                            bild_data, 1, ausst_str, 
+                            1 if v_schatten else 0, 1 if v_sitze else 0, 1 if v_wc else 0, 
+                            f_lat, f_lon
+                        ):
+                            st.success(f"Klasse! '{v_n}' wurde erfolgreich lokalisiert und zur Prüfung gespeichert.")
+                else:
+                    st.error("Die Adresse wurde nicht gefunden. Bitte prüfe die Schreibweise!")
             else:
-                st.warning("Bitte Name, Stadt und Datenschutz ausfüllen!")
+                st.warning("Bitte fülle alle Pflichtfelder (*) aus!")
 
 def show_profile_area():
     """Das Profil-Dashboard mit allen Tabs"""
@@ -189,15 +182,24 @@ def show_profile_area():
     with sub_tabs[0]:
         df_u = hole_df("nutzer")
         u_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
+        
+        emo_liste = ["🧗", "🤸", "🦁", "🚀", "🌈", "🎈"]
+        aktuelles_emo = u_data.get('profil_emoji', "🧗")
+        emo_index = emo_liste.index(aktuelles_emo) if aktuelles_emo in emo_liste else 0
+        
         with st.form("p_data"):
-            st.markdown(f"### Willkommen, {st.session_state.user}!")
+            st.markdown(f"### Hallo {st.session_state.user}!")
             ne = st.text_input("E-Mail", value=u_data['email'])
             nv = st.text_input("Vorname", value=u_data['vorname'])
             nn = st.text_input("Nachname", value=u_data['nachname'])
-            na = st.number_input("Alter", value=int(u_data['alter_jahre']))
-            if st.form_submit_button("Speichern"):
-                aktualisiere_profil(st.session_state.user, ne, nv, nn, na, u_data.get('profil_emoji', '🧗'))
-                st.success("Daten aktualisiert!"); st.rerun()
+            na = st.number_input("Alter (Jahre)", value=int(u_data['alter_jahre']))
+            emo = st.selectbox("Dein Profil-Emoji", emo_liste, index=emo_index)
+            
+            if st.form_submit_button("Änderungen speichern"):
+                if aktualisiere_profil(st.session_state.user, ne, nv, nn, na, emo):
+                    st.success("Daten aktualisiert!"); st.rerun()
+                else:
+                    st.error("Fehler beim Speichern.")
                 
     with sub_tabs[1]: show_user_area()
     with sub_tabs[2]: show_proposal_area()
@@ -205,14 +207,14 @@ def show_profile_area():
     with sub_tabs[4]: show_wusel_crew()
 
 def show_feedback_area():
-    """Feedback-Funktion"""
+    """Feedback-Funktion für Nutzer"""
     st.title("💬 Feedback")
-    st.write("Hilf uns, WuselMap noch besser zu machen!")
+    st.write("Hast du Wünsche oder Probleme? Schreib uns!")
     with st.form("f_form"):
-        msg = st.text_area("Deine Nachricht an uns...")
+        msg = st.text_area("Deine Nachricht an das WuselMap-Team...")
         if st.form_submit_button("Feedback absenden"):
             if msg:
                 if sende_feedback(st.session_state.user, msg):
-                    st.success("Vielen Dank für dein Feedback!"); st.rerun()
+                    st.success("Vielen Dank für deine Nachricht!"); st.rerun()
             else:
                 st.warning("Bitte gib eine Nachricht ein.")
