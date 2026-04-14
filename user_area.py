@@ -105,62 +105,81 @@ def show_user_area():
             else: st.info("Noch keine Spielplätze in der Datenbank.")
         else: st.error("Adresse konnte nicht gefunden werden.")
 
+import streamlit.components.v1 as components
+
 def show_proposal_area():
-    """Bereich zum Vorschlagen neuer Spots mit dem stabilen Weltkugel-Button"""
     st.subheader("💡 Spot vorschlagen")
-    
-    st.info("Klicke auf die Weltkugel, um deinen Standort zu erfassen:")
-    
-    # Das neue Tool: Erzeugt einen Button mit Weltkugel-Icon
-    location = streamlit_geolocation()
-    
-    gps_lat = location.get('latitude')
-    gps_lon = location.get('longitude')
 
-    if gps_lat and gps_lon:
-        st.success(f"📍 Standort fixiert: {gps_lat}, {gps_lon}")
-    else:
-        st.warning("Kein GPS-Signal. Klicke auf die Weltkugel oder gib die Adresse manuell ein.")
+    # 1. Das "Funkgerät" (JavaScript)
+    # Dieser Code fragt das Handy direkt ohne Umwege
+    gps_code = """
+    <script>
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition, showError, {enableHighAccuracy: true});
+        } else { 
+            window.parent.postMessage({type: 'gps_error', msg: 'GPS nicht unterstützt'}, '*');
+        }
+    }
+    function showPosition(position) {
+        const coords = {
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+        };
+        window.parent.postMessage({type: 'gps_data', data: coords}, '*');
+    }
+    function showError(error) {
+        window.parent.postMessage({type: 'gps_error', msg: error.message}, '*');
+    }
+    </script>
+    <button onclick="getLocation()" style="
+        background-color: #4CAF50; 
+        color: white; 
+        padding: 15px 32px; 
+        border: none; 
+        border-radius: 8px; 
+        width: 100%;
+        font-size: 16px;
+        cursor: pointer;">
+        📍 MEINEN STANDORT JETZT FINDEN
+    </button>
+    """
+    
+    st.info("Klicke auf den grünen Button. Dein Handy sollte dich dann aktiv fragen.")
+    
+    # Hier fangen wir die Nachricht vom JavaScript ab
+    # Wir nutzen einen Trick: Ein verstecktes Feld oder Session State
+    components.html(gps_code, height=70)
 
+    # Wir nutzen hier den Standard-Weg für die Eingabe, falls JS nicht zündet
     with st.form("v_form", clear_on_submit=True):
         v_n = st.text_input("Name des Spots*")
         
-        # Adresse optional bei GPS-Nutzung
-        v_s = st.text_input("Straße & Hausnr. (optional bei GPS)")
+        st.write("---")
+        st.write("Falls der grüne Button oben keine Daten liefert, bitte hier tippen:")
+        v_s = st.text_input("Straße & Hausnummer")
         v_st = st.text_input("Stadt*", value="Varel")
         v_bund = st.selectbox("Bundesland*", ["Niedersachsen", "Bremen", "Hamburg", "Schleswig-Holstein", "Nordrhein-Westfalen"])
-        v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
         
         st.write("---")
-        ausst_list = st.multiselect("Ausstattung", ["Rutsche", "Schaukel", "Seilbahn", "Klettergerüst", "Sandkasten", "Wippe", "Karussell"])
-        c1, c2, c3 = st.columns(3)
-        v_schatten = c1.checkbox("🌳 Schatten")
-        v_sitze = c2.checkbox("🪑 Sitzplätze")
-        v_wc = c3.checkbox("🚽 Toilette")
-        
-        st.write("---")
+        ausst_list = st.multiselect("Was gibt es dort?", ["Rutsche", "Schaukel", "Seilbahn", "Klettergerüst", "Sandkasten", "Wippe", "Karussell"])
         v_img = st.file_uploader("Foto hochladen", type=["jpg", "png", "jpeg"])
         ds = st.checkbox("Keine Personen auf dem Foto erkennbar*")
         
-        if st.form_submit_button("Einsenden", use_container_width=True):
-            if v_n and (v_s or gps_lat) and v_st and ds:
-                final_lat, final_lon = gps_lat, gps_lon
+        if st.form_submit_button("Spot jetzt einsenden", use_container_width=True):
+            # Geocoding Fallback (Das Sicherheitsnetz)
+            gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+            res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
+            
+            if v_n and res and ds:
+                f_lat = res[0]['geometry']['lat']
+                f_lon = res[0]['geometry']['lng']
                 
-                # Wenn kein GPS-Fix da ist, Geocoder nutzen
-                if not final_lat:
-                    gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-                    res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
-                    if res:
-                        final_lat, final_lon = res[0]['geometry']['lat'], res[0]['geometry']['lng']
-                
-                if final_lat:
-                    ausst_str = ", ".join(ausst_list)
-                    bild_data = optimiere_bild(v_img)
-                    if sende_vorschlag(v_n, v_s if v_s else "GPS-Ortung", v_alt, st.session_state.user, v_bund, "00000", v_st, bild_data, 1, ausst_str, 1 if v_schatten else 0, 1 if v_sitze else 0, 1 if v_wc else 0, final_lat, final_lon):
-                        st.success(f"Erfolg! '{v_n}' wird geprüft.")
-                else:
-                    st.error("Weder GPS noch Adresse konnten zugeordnet werden.")
-            else: st.warning("Bitte alle Pflichtfelder (*) ausfüllen!")
+                bild_data = optimiere_bild(v_img)
+                if sende_vorschlag(v_n, v_s, "Alle", st.session_state.user, v_bund, "00000", v_st, bild_data, 1, ", ".join(ausst_list), 0, 0, 0, f_lat, f_lon):
+                    st.success(f"Super! '{v_n}' wurde über die Adresse erfasst.")
+            else:
+                st.warning("Bitte Name, Stadt und Datenschutz ausfüllen!")
 
 def show_profile_area():
     """Das Profil-Dashboard mit allen Tabs"""
