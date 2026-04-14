@@ -4,108 +4,170 @@ import plotly.express as px
 from opencage.geocoder import OpenCageGeocode
 import numpy as np
 import requests
+from streamlit_js_eval import streamlit_js_eval
 from database_manager import hole_df, sende_vorschlag, sende_feedback, optimiere_bild, aktualisiere_profil
-from messaging import show_wuselfunk, show_wusel_crew 
+from messaging import show_wuselfunk, show_wusel_crew, show_spielplatzfunk
+
+# --- HILFSFUNKTIONEN ---
 
 def distanz(lat1, lon1, lat2, lon2):
+    """Berechnet die Entfernung zwischen zwei Koordinaten in km"""
     R = 6371
     dlat, dlon = np.radians(lat2-lat1), np.radians(lon2-lon1)
     a = np.sin(dlat/2)**2 + np.cos(np.radians(lat1)) * np.cos(np.radians(lat2)) * np.sin(dlon/2)**2
     return R * (2 * np.arctan2(np.sqrt(a), np.sqrt(1-a)))
 
+# --- HAUPTFUNKTIONEN ---
+
 def show_user_area():
-    st.subheader("📍 Kletter-Spots in deiner Nähe")
-    c1, c2 = st.columns([3, 1])
-    with c1: adr = st.text_input("Wo suchst du?", "Varel")
-    with c2: km = st.slider("Umkreis (km)", 1, 100, 20)
+    """Die Such- und Kartenansicht"""
+    st.subheader("📍 Spielplätze in deiner Nähe")
+    
+    with st.expander("🔍 Suche & Filter anpassen", expanded=True):
+        c1, c2 = st.columns([3, 1])
+        with c1: adr = st.text_input("Wo suchst du?", "Varel")
+        with c2: km = st.slider("Umkreis (km)", 1, 100, 20)
+        
+        f1, f2 = st.columns(2)
+        with f1:
+            alter_filter = st.multiselect("Altersgruppe", options=["0-3", "3-12", "Alle"], default=["0-3", "3-12", "Alle"])
+        with f2:
+            show_maintenance = st.toggle("Auch Plätze in Wartung anzeigen", value=True)
+    
+    df = hole_df("spielplaetze")
     
     if st.button("🔍 Suchen", type="primary"):
         gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
         res = gc.geocode(adr + ", Deutschland")
         if res:
             slat, slon = res[0]['geometry']['lat'], res[0]['geometry']['lng']
-            df = hole_df("spielplaetze")
+            
             if not df.empty:
                 df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
                 df['lon'] = pd.to_numeric(df['lon'], errors='coerce')
                 df['distanz'] = df.apply(lambda r: distanz(slat, slon, r['lat'], r['lon']), axis=1)
-                final = df[df['distanz'] <= km].sort_values('distanz')
                 
+                # Filtern
+                final = df[df['distanz'] <= km]
+                final = final[final['altersfreigabe'].isin(alter_filter)]
+                if not show_maintenance:
+                    final = final[final.get('status', 'aktiv') != 'wartung']
+                
+                final = final.sort_values('distanz')
+
                 if not final.empty:
+                    # Karten-Daten aufbereiten
+                    final['Status'] = final['status'].apply(lambda x: "✅ AKTIV" if x == 'aktiv' else "⚠️ WARTUNG")
+                    final['Ausstattung_Info'] = final['ausstattung'].apply(lambda x: x if x and str(x).lower() != 'none' else "Keine Angabe")
+                    final['size'] = 15 
+
                     col_l, col_r = st.columns([1, 1.5])
                     with col_l:
                         for i, r in final.iterrows():
-                            # Titel ändert sich, wenn auf Wartung
                             titel = f"📍 {r['Standort']}"
                             if r.get('status') == 'wartung':
                                 titel = f"⚠️ {r['Standort']} (Wartung)"
                             
                             with st.expander(f"{titel} ({round(r['distanz'], 1)} km)"):
-                                # WARTUNGS-HINWEIS
                                 if r.get('status') == 'wartung':
-                                    st.error("🚨 **Achtung:** Dieser Spot wurde als beschädigt gemeldet. Nutzung auf eigene Gefahr!")
-
+                                    st.error("🚨 **Achtung:** Dieser Spot wurde als beschädigt gemeldet.")
                                 if r.get('bild_data'): 
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 
                                 st.write(f"**Ort:** {r['stadt']}")
+                                st.write(f"**Ausstattung:** {r['Ausstattung_Info']}")
+                                extras = []
+                                if r.get('hat_schatten'): extras.append("🌳 Schatten")
+                                if r.get('hat_sitze'): extras.append("🪑 Sitzplätze")
+                                if r.get('hat_wc'): extras.append("🚽 Toilette")
+                                if extras: st.write(" | ".join(extras))
                                 
-                                # BEWERTUNG (Sterne)
-                                st.write("**Wie gefällt dir der Spot?**")
                                 rating = st.feedback("stars", key=f"rate_{r.get('id', i)}")
-                                if rating is not None:
-                                    # Hinweis: Speicher-Logik muss in database_manager ergänzt werden
-                                    st.toast(f"Danke für {rating + 1} Sterne!")
-
-                                # WETTER
-                                try:
-                                    stadt_w = r['stadt'].replace(" ", "+")
-                                    w_res = requests.get(f"https://wttr.in/{stadt_w}?format=%c+%t&m", timeout=2)
-                                    if w_res.status_code == 200:
-                                        wetter_text = w_res.content.decode('utf-8').replace("Â", "")
-                                        st.info(f"Wetter: {wetter_text}")
-                                except: pass 
+                                if rating is not None: st.toast(f"Danke für {rating + 1} Sterne!")
 
                     with col_r:
-                        fig = px.scatter_mapbox(final, lat="lat", lon="lon", hover_name="Standort", zoom=10, height=500, color_discrete_sequence=["#ff8c00"])
-                        fig.update_layout(
-                            mapbox_style="open-street-map", 
-                            margin={"r":0,"t":0,"l":0,"b":0},
-                            mapbox_center={"lat": slat, "lon": slon}
+                        color_map = {"✅ AKTIV": "#00FF00", "⚠️ WARTUNG": "#FF0000"} 
+                        fig = px.scatter_mapbox(
+                            final, lat="lat", lon="lon", hover_name="Standort",
+                            hover_data={"lat": False, "lon": False, "size": False, "Status": True, "Ausstattung_Info": True},
+                            color="Status", color_discrete_map=color_map, size="size", size_max=18, zoom=11, height=600,
+                            labels={"Ausstattung_Info": "Ausstattung"}
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        fig.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0},
+                                          mapbox_center={"lat": slat, "lon": slon})
+                        st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True})
                 else: st.warning("Keine Spots im Umkreis gefunden.")
         else: st.error("Adresse nicht gefunden.")
 
-# Rest der Funktionen (show_proposal_area, etc.) bleiben wie von dir gesendet...
 def show_proposal_area():
+    """Bereich zum Vorschlagen neuer Spots inkl. GPS"""
     st.subheader("💡 Spot vorschlagen")
+    
+    st.write("Bist du direkt am Spielplatz? Nutze GPS für die exakte Position!")
+    loc_data = streamlit_js_eval(data_of='geolocation', stop_after_found=True, key='get_gps')
+    
+    gps_lat, gps_lon = None, None
+    if loc_data:
+        gps_lat = loc_data['coords']['latitude']
+        gps_lon = loc_data['coords']['longitude']
+        st.success(f"📍 GPS-Position erfasst: {gps_lat}, {gps_lon}")
+
     with st.form("v_form", clear_on_submit=True):
         v_n = st.text_input("Name des Spots*")
-        v_s = st.text_input("Straße & Hausnr.*")
-        v_st = st.text_input("Stadt*")
-        v_p = st.text_input("PLZ (optional)") 
+        v_s = st.text_input("Straße & Hausnr. (oder markante Stelle)*")
+        v_st = st.text_input("Stadt*", value="Varel")
+        v_p = st.text_input("PLZ (optional)")
+        v_bund = st.selectbox("Bundesland*", ["Niedersachsen", "Bremen", "Hamburg", "Schleswig-Holstein", "Nordrhein-Westfalen"])
         v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
+        
+        st.write("---")
+        st.write("**Zusatzinfos (Optional):**")
+        ausst_list = st.multiselect("Ausstattung", ["Rutsche", "Schaukel", "Seilbahn", "Klettergerüst", "Sandkasten", "Wippe", "Karussell"])
+        c1, c2, c3 = st.columns(3)
+        v_schatten = c1.checkbox("🌳 Schatten")
+        v_sitze = c2.checkbox("🪑 Sitzplätze")
+        v_wc = c3.checkbox("🚽 Toilette")
+        
+        st.write("---")
         v_img = st.file_uploader("Foto hochladen", type=["jpg", "png", "jpeg"])
         ds = st.checkbox("Keine Personen auf dem Foto erkennbar*")
+        
         if st.form_submit_button("Einsenden"):
             if v_n and v_s and v_st and ds:
-                plz_final = v_p.strip()
-                if not plz_final:
-                    try:
-                        gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-                        res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
-                        plz_final = res[0]['components'].get('postcode', "00000") if res else "00000"
-                    except: plz_final = "00000"
-                bild_data = optimiere_bild(v_img)
-                if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, "Niedersachsen", plz_final, v_st, bild_data, 1 if ds else 0):
-                    st.success(f"Erfolg! Spot wird geprüft.")
+                final_lat, final_lon = gps_lat, gps_lon
+                
+                if not final_lat:
+                    gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+                    res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
+                    if res:
+                        final_lat, final_lon = res[0]['geometry']['lat'], res[0]['geometry']['lng']
+                
+                if final_lat:
+                    existierende = hole_df("spielplaetze")
+                    is_double = False
+                    if not existierende.empty:
+                        for _, ex in existierende.iterrows():
+                            if distanz(final_lat, final_lon, float(ex['lat']), float(ex['lon'])) < 0.1:
+                                is_double = True
+                                break
+                    
+                    if is_double:
+                        st.error("🚨 Halt! An dieser Stelle existiert bereits ein Spielplatz.")
+                    else:
+                        ausst_str = ", ".join(ausst_list)
+                        bild_data = optimiere_bild(v_img)
+                        if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, v_bund, v_p or "00000", v_st, bild_data, 1, ausst_str, 1 if v_schatten else 0, 1 if v_sitze else 0, 1 if v_wc else 0, final_lat, final_lon):
+                            st.success(f"Danke! '{v_n}' wird geprüft.")
+                else:
+                    st.error("Weder GPS noch Adresse gefunden. Bitte präziser angeben!")
             else: st.warning("Pflichtfelder (*) ausfüllen!")
 
 def show_profile_area():
-    st.title("👤 Mein Bereich")
-    sub_tabs = st.tabs(["⚙️ Profil-Daten", "📍 Suche", "💡 Vorschlag", "📻 Wuselfunk", "👥 Wusel-Crew"])
-    with sub_tabs[0]:
+    """Das Profil-Dashboard mit allen Tabs"""
+    st.title("Mein Bereich")
+    sub_tabs = st.tabs(["⚙️ Profil-Daten", "📍 Suche", "💡 Vorschlag", "🔒 Wuselfunk", "👥 Freunde"])
+    
+    with sub_tabs[0]: # Profil bearbeiten
         df_u = hole_df("nutzer")
         user_data = df_u[df_u['benutzername'] == st.session_state.user].iloc[0]
         emo_liste = ["🧗", "🤸", "🦁", "🚀"]
@@ -120,24 +182,17 @@ def show_profile_area():
             if st.form_submit_button("Speichern"):
                 aktualisiere_profil(st.session_state.user, ne, nv, nn, na, emo)
                 st.success("Daten aktualisiert!"); st.rerun()
+                
     with sub_tabs[1]: show_user_area()
     with sub_tabs[2]: show_proposal_area()
-    with sub_tabs[3]: show_wuselfunk()
-    with sub_tabs[4]: show_wusel_crew()
+    with sub_tabs[3]: show_wuselfunk() # Importiert aus messaging.py
+    with sub_tabs[4]: show_wusel_crew() # Importiert aus messaging.py
 
 def show_feedback_area():
+    """Feedback-Formular"""
     st.title("💬 Feedback")
     with st.form("f_form"):
-        msg = st.text_area("Deine Nachricht")
+        msg = st.text_area("Deine Nachricht an das WuselMap-Team")
         if st.form_submit_button("Absenden"):
             if msg and sende_feedback(st.session_state.user, msg):
                 st.success("Vielen Dank!"); st.rerun()
-
-def show_legal_area():
-    st.title("📄 Rechtliches & Sicherheit")
-    legal_tabs = st.tabs(["⚖️ Impressum", "🔒 Datenschutz", "🛡️ Jugendschutz"])
-    with legal_tabs[0]: 
-        st.write("**Verantwortlich:** Christian Wolff")
-        st.write("Kontakt: info@wuselmap.de")
-    with legal_tabs[1]: st.write("Datenschutz-Infos...")
-    with legal_tabs[2]: st.write("Eltern haften für ihre Kinder.")

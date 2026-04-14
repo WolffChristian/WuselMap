@@ -1,19 +1,19 @@
 import streamlit as st
 from database_manager import hole_df, hash_passwort, registriere_nutzer
 from styles import apply_custom_css, show_header
-from user_area import show_profile_area, show_feedback_area # show_legal_area hier entfernt!
+from user_area import show_profile_area, show_feedback_area
 from admin_area import show_admin_area
-from legal_area import show_legal_area # Das ist jetzt die einzige Quelle
-
+from legal_area import show_legal_area
+from messaging import show_spielplatzfunk
 
 def main():
     apply_custom_css()
     show_header()
     
     # Beta-Hinweis
-    st.warning("⚠️ **WuselMap Beta:** Wir optimieren gerade die Funktionen. Fehler bitte an info@wuselmap.de melden! 🧗‍♂️")
+    st.warning("⚠️ **WuselMap Beta:** Wir optimieren gerade die Funktionen. 🧗‍♂️")
 
-    # --- PERSISTENZ-LOGIK ---
+    # --- PERSISTENZ-LOGIK (Login merken) ---
     if 'logged_in' not in st.session_state:
         if "user" in st.query_params:
             u_name = st.query_params["user"]
@@ -30,7 +30,7 @@ def main():
     if 'auth_mode' not in st.session_state:
         st.session_state.auth_mode = "login"
 
-    # Navigation
+    # Navigation: Login/Register oder Haupt-App
     if not st.session_state.logged_in:
         if st.session_state.auth_mode == "login":
             show_login_page()
@@ -87,20 +87,22 @@ def show_registration_page():
         st.rerun()
 
 def show_main_app():
-    menu = ["👤 Mein Bereich", "💬 Feedback", "📄 Rechtliches"]
+    # Die Menü-Struktur mit dem neuen öffentlichen Funk
+    menu = ["👤 Mein Bereich", "📢 Funk", "💬 Feedback", "📄 Rechtliches"]
     if st.session_state.role == 'admin':
         menu.append("🛠️ Admin")
     
     choice = st.tabs(menu)
     
     with choice[0]: show_profile_area()
-    with choice[1]: show_feedback_area()
-    with choice[2]: show_legal_area()
+    with choice[1]: show_spielplatzfunk()
+    with choice[2]: show_feedback_area()
+    with choice[3]: show_legal_area()
     
     if st.session_state.role == 'admin':
-        with choice[3]: show_admin_area()
+        with choice[4]: show_admin_area()
 
-    # --- ZENTRALER LOGOUT (Wichtig!) ---
+    # Zentraler Logout
     st.divider()
     if st.button("🚪 Logout", use_container_width=True):
         st.query_params.clear()

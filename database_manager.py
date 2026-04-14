@@ -6,6 +6,8 @@ from PIL import Image
 import io
 import base64
 
+# --- GRUNDFUNKTIONEN ---
+
 def get_db_connection():
     try:
         return mysql.connector.connect(
@@ -67,13 +69,16 @@ def aktualisiere_profil(un, em, vn, nn, al, emo):
     except: return False
     finally: cursor.close(); conn.close()
 
-def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds):
+def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds, ausst="", sch=0, sitz=0, wc=0, lat=None, lon=None):
     conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO vorschlaege (standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
+    sql = """INSERT INTO vorschlaege (standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz, ausstattung, hat_schatten, hat_sitze, hat_wc, status, lat, lon) 
+             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, 'neu', %s, %s)"""
     try:
-        cursor.execute(sql, (n, ad, al, bund, plz, stadt, bild, ds))
+        cursor.execute(sql, (n, ad, al, bund, plz, stadt, bild, ds, ausst, sch, sitz, wc, lat, lon))
         conn.commit(); return True
-    except: return False
+    except Exception as e:
+        st.error(f"SQL-Fehler beim Vorschlag: {e}")
+        return False
     finally: cursor.close(); conn.close()
 
 def sende_feedback(us, ms):
@@ -86,13 +91,21 @@ def sende_feedback(us, ms):
 
 # --- ADMIN & STATUS FUNKTIONEN ---
 
-def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds):
+def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds, ausst="", sch=0, sitz=0, wc=0):
     conn = get_db_connection(); cursor = conn.cursor()
     sql = """INSERT INTO spielplaetze 
-             (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz) 
-             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+             (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz, ausstattung, hat_schatten, hat_sitze, hat_wc, status) 
+             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, 'aktiv')"""
     try:
-        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds))
+        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds, ausst, sch, sitz, wc))
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def loesche_spielplatz(s_id):
+    conn = get_db_connection(); cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM spielplaetze WHERE id = %s", (s_id,))
         conn.commit(); return True
     except: return False
     finally: cursor.close(); conn.close()
@@ -113,8 +126,15 @@ def loesche_feedback(f_id):
     except: return False
     finally: cursor.close(); conn.close()
 
+def loesche_oeffentliche_nachrichten():
+    conn = get_db_connection(); cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM nachrichten WHERE is_private = FALSE")
+        conn.commit(); return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
 def setze_spot_status(spot_id, neuer_status):
-    """Ändert den Status (z.B. 'aktiv' oder 'wartung')"""
     conn = get_db_connection()
     if not conn: return False
     cursor = conn.cursor()
@@ -124,34 +144,29 @@ def setze_spot_status(spot_id, neuer_status):
     except: return False
     finally: cursor.close(); conn.close()
 
-# --- BEWERTUNGEN ---
+# --- MESSAGING & CREW LOGIK (WICHTIG!) ---
 
-def speichere_bewertung(s_id, user, sterne):
-    """Speichert oder aktualisiert eine Sterne-Bewertung"""
+def sende_nachricht(von, an, text, is_private=False, spot_name='Allgemein'):
     conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO bewertungen (spot_id, nutzername, sterne) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE sterne = %s"
+    # Nutzt deine Spaltennamen: recipient_id und is_private
+    sql = "INSERT INTO nachrichten (von_nutzer, recipient_id, nachricht, is_private, spot_name) VALUES (%s, %s, %s, %s, %s)"
     try:
-        cursor.execute(sql, (s_id, user, sterne, sterne))
+        cursor.execute(sql, (von, an, text, is_private, spot_name))
         conn.commit(); return True
-    except: return False
+    except Exception as e:
+        st.error(f"Fehler beim Senden: {e}")
+        return False
     finally: cursor.close(); conn.close()
 
-# --- MESSAGING & CREW LOGIK ---
-
-def sende_nachricht(von, an, text):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO nachrichten (von_nutzer, an_nutzer, nachricht) VALUES (%s, %s, %s)"
-    try:
-        cursor.execute(sql, (von, an, text))
-        conn.commit(); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def hole_nachrichten(nutzername):
+def hole_nachrichten(nutzername, nur_privat=False):
     conn = get_db_connection()
     if conn is None: return pd.DataFrame()
     try:
-        return pd.read_sql(f"SELECT * FROM nachrichten WHERE an_nutzer = '{nutzername}' ORDER BY zeitpunkt DESC", conn)
+        if nur_privat:
+            sql = f"SELECT * FROM nachrichten WHERE is_private = TRUE AND (recipient_id = '{nutzername}' OR von_nutzer = '{nutzername}') ORDER BY zeitpunkt DESC"
+        else:
+            sql = "SELECT * FROM nachrichten WHERE is_private = FALSE ORDER BY zeitpunkt DESC"
+        return pd.read_sql(sql, conn)
     finally: conn.close()
 
 def fuege_freund_hinzu(nutzer, freund_name):
@@ -180,16 +195,12 @@ def hole_crew_anfragen(nutzername):
     finally: conn.close()
 
 def bestaetige_anfrage(absender, ich):
-    conn = get_db_connection()
-    if not conn: return False
-    cursor = conn.cursor()
+    conn = get_db_connection(); cursor = conn.cursor()
     try:
         cursor.execute("UPDATE freunde SET status = 'bestätigt' WHERE nutzer = %s AND freund = %s", (absender, ich))
         cursor.execute("INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'bestätigt')", (ich, absender))
         conn.commit(); return True
-    except Exception as e:
-        st.error(f"SQL-Fehler beim Bestätigen: {e}")
-        return False
+    except: return False
     finally: cursor.close(); conn.close()
 
 def lehne_anfrage_ab(absender, ich):
