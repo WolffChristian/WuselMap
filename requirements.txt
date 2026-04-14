@@ -6,4 +6,4 @@ opencage
 numpy
 Pillow
 extra-streamlit-components
-streamlit-js-eval
+streamlit-geolocation
