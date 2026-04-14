@@ -229,3 +229,39 @@ CREATE TABLE IF NOT EXISTS bewertungen (
     zeitstempel TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY unique_bewertung (spot_id, nutzername)
 );
+
+
+SELECT * from spielplaetze;
+
+DELETE FROM spielplaetze 
+WHERE id = 1;
+
+
+
+ALTER TABLE nachrichten
+ADD COLUMN recipient_id VARCHAR(255) DEFAULT 'GLOBAL',
+ADD COLUMN is_private BOOLEAN DEFAULT FALSE;
+-- Spalten für vorschlaege ergänzen
+ALTER TABLE vorschlaege 
+ADD COLUMN ausstattung TEXT, 
+ADD COLUMN hat_schatten TINYINT(1) DEFAULT 0, 
+ADD COLUMN hat_sitze TINYINT(1) DEFAULT 0;
+
+-- Spalten für spielplaetze ergänzen
+ALTER TABLE spielplaetze 
+ADD COLUMN ausstattung TEXT, 
+ADD COLUMN hat_schatten TINYINT(1) DEFAULT 0, 
+ADD COLUMN hat_sitze TINYINT(1) DEFAULT 0;
+ALTER TABLE nachrichten 
+ADD COLUMN spot_name VARCHAR(255) DEFAULT 'Allgemein';
+DELETE FROM nachrichten WHERE is_private = FALSE;
+ALTER TABLE vorschlaege 
+ADD COLUMN lat DECIMAL(10, 8), 
+ADD COLUMN lon DECIMAL(11, 8);
+-- Spalten für GPS und Ausstattung in beiden Tabellen
+ALTER TABLE vorschlaege ADD COLUMN lat DECIMAL(10, 8), ADD COLUMN lon DECIMAL(11, 8), ADD COLUMN ausstattung TEXT, ADD COLUMN hat_schatten TINYINT(1), ADD COLUMN hat_sitze TINYINT(1);
+ALTER TABLE spielplaetze ADD COLUMN lat DECIMAL(10, 8), ADD COLUMN lon DECIMAL(11, 8), ADD COLUMN ausstattung TEXT, ADD COLUMN hat_schatten TINYINT(1), ADD COLUMN hat_sitze TINYINT(1);
+
+-- Spalte für den Funk (falls noch nicht geschehen)
+ALTER TABLE nachrichten ADD COLUMN spot_name VARCHAR(255) DEFAULT 'Allgemein';
+

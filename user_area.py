@@ -44,12 +44,10 @@ def show_user_area():
             slat, slon = res[0]['geometry']['lat'], res[0]['geometry']['lng']
             
             if not df.empty:
-                # Koordinaten in Zahlen umwandeln
                 df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
                 df['lon'] = pd.to_numeric(df['lon'], errors='coerce')
                 df['distanz'] = df.apply(lambda r: distanz(slat, slon, r['lat'], r['lon']), axis=1)
                 
-                # Filtern nach Kriterien
                 final = df[df['distanz'] <= km]
                 final = final[final['altersfreigabe'].isin(alter_filter)]
                 if not show_maintenance:
@@ -58,7 +56,6 @@ def show_user_area():
                 final = final.sort_values('distanz')
 
                 if not final.empty:
-                    # Daten für Karte aufbereiten
                     final['Status'] = final['status'].apply(lambda x: "✅ AKTIV" if x == 'aktiv' else "⚠️ WARTUNG")
                     final['Ausstattung_Info'] = final['ausstattung'].apply(lambda x: x if x and str(x).lower() != 'none' else "Keine Angabe")
                     final['size'] = 15 
@@ -108,27 +105,36 @@ def show_user_area():
         else: st.error("Adresse konnte nicht gefunden werden.")
 
 def show_proposal_area():
-    """Bereich zum Vorschlagen neuer Spots"""
+    """Bereich zum Vorschlagen neuer Spots mit verbessertem GPS"""
     st.subheader("💡 Spot vorschlagen")
     
-    st.info("Möchtest du, dass wir deine Position automatisch bestimmen? Setze das Häkchen.")
-    use_gps = st.checkbox("📍 Meinen Standort jetzt automatisch verwenden")
+    # Session State initialisieren, damit die Koordinaten gespeichert bleiben
+    if 'gps_data' not in st.session_state:
+        st.session_state.gps_data = None
+
+    st.info("Stehst du direkt am Spielplatz? Klicke auf den Button für die exakte Position.")
     
-    gps_lat, gps_lon = None, None
-    if use_gps:
-        loc = streamlit_js_eval(data_of='geolocation', stop_after_found=True, key='get_gps_proposal')
+    # Ein Button löst die Anfrage beim Browser viel zuverlässiger aus als eine Checkbox
+    if st.button("📍 Meinen Standort jetzt erfassen", use_container_width=True):
+        loc = streamlit_js_eval(data_of='geolocation', stop_after_found=True, key='get_gps_final')
         if loc:
-            gps_lat = loc['coords']['latitude']
-            gps_lon = loc['coords']['longitude']
-            st.success(f"Position fixiert: {gps_lat}, {gps_lon}")
+            st.session_state.gps_data = (loc['coords']['latitude'], loc['coords']['longitude'])
         else:
-            st.info("Suche Signal... Bitte GPS am Handy aktivieren.")
+            st.warning("⌛ Suche Signal... Bitte stelle sicher, dass GPS am Handy aktiviert ist und klicke ggf. erneut.")
+
+    # Status-Anzeige der Ortung
+    gps_lat, gps_lon = (None, None)
+    if st.session_state.gps_data:
+        gps_lat, gps_lon = st.session_state.gps_data
+        st.success(f"✅ GPS fixiert: {gps_lat}, {gps_lon}")
 
     with st.form("v_form", clear_on_submit=True):
         v_n = st.text_input("Name des Spots*")
         
-        # Adresse optional bei GPS-Nutzung
-        v_s = st.text_input("Straße & Hausnr. (optional bei GPS)")
+        # Hinweis-Logik
+        addr_label = "Straße & Hausnr.*" if not gps_lat else "Straße & Hausnr. (optional bei GPS)"
+        v_s = st.text_input(addr_label)
+        
         v_st = st.text_input("Stadt*", value="Varel")
         v_bund = st.selectbox("Bundesland*", ["Niedersachsen", "Bremen", "Hamburg", "Schleswig-Holstein", "Nordrhein-Westfalen"])
         v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
@@ -148,6 +154,7 @@ def show_proposal_area():
             if v_n and (v_s or gps_lat) and v_st and ds:
                 final_lat, final_lon = gps_lat, gps_lon
                 
+                # Wenn kein GPS-Fix da ist, Geocoder nutzen
                 if not final_lat:
                     gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
                     res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
@@ -171,6 +178,7 @@ def show_proposal_area():
                         bild_data = optimiere_bild(v_img)
                         if sende_vorschlag(v_n, v_s if v_s else "GPS-Ortung", v_alt, st.session_state.user, v_bund, "00000", v_st, bild_data, 1, ausst_str, 1 if v_schatten else 0, 1 if v_sitze else 0, 1 if v_wc else 0, final_lat, final_lon):
                             st.success(f"Erfolg! '{v_n}' wird geprüft.")
+                            st.session_state.gps_data = None # Reset für den nächsten
                 else:
                     st.error("Weder GPS noch Adresse konnten zugeordnet werden.")
             else: st.warning("Bitte alle Pflichtfelder (*) ausfüllen!")
