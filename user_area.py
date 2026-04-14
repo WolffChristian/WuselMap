@@ -112,20 +112,23 @@ def show_proposal_area():
     st.subheader("💡 Neuen Spot vorschlagen")
     
     st.markdown("""
-    Da Handy-GPS oft blockiert wird, nutzen wir unsere **automatische Standorterkennung**. 
-    Gib einfach Name und Adresse ein – unser System erledigt den Rest!
+    **Profi-Tipp:** Für Parks oder große Plätze kannst du auch Kreuzungen angeben, 
+    z. B. *Hauptstraße & Nebenstraße*. Das ist genauer als nur eine Hausnummer!
     """)
 
     with st.form("v_form", clear_on_submit=True):
-        v_n = st.text_input("Name des Spielplatzes*", placeholder="z.B. Piratenschiff im Stadtpark")
-        v_s = st.text_input("Straße & Hausnummer*", placeholder="z.B. Am Spielplatz 5")
-        v_st = st.text_input("Stadt*", value="Varel")
-        v_p = st.text_input("PLZ (optional)")
+        v_n = st.text_input("Name des Spielplatzes*", placeholder="z.B. Abenteuerspielplatz Stadtpark")
+        
+        # Geänderter Hinweis für Kreuzungen
+        v_s = st.text_input("Straße & Hausnr. oder Kreuzung*", placeholder="z.B. Mühlenweg & Gartenstraße")
+        
+        # Stadt-Feld jetzt standardmäßig leer
+        v_st = st.text_input("Stadt*") 
+        
         v_bund = st.selectbox("Bundesland*", ["Niedersachsen", "Bremen", "Hamburg", "Schleswig-Holstein", "Nordrhein-Westfalen"])
         v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
         
         st.write("---")
-        st.write("**Zusatzinfos:**")
         ausst_list = st.multiselect("Ausstattung", ["Rutsche", "Schaukel", "Seilbahn", "Klettergerüst", "Sandkasten", "Wippe", "Karussell"])
         
         c1, c2, c3 = st.columns(3)
@@ -134,45 +137,28 @@ def show_proposal_area():
         v_wc = c3.checkbox("🚽 Toilette")
         
         st.write("---")
-        v_img = st.file_uploader("Foto hochladen (optional)", type=["jpg", "png", "jpeg"])
+        v_img = st.file_uploader("Foto hochladen", type=["jpg", "png", "jpeg"])
         ds = st.checkbox("Keine Personen auf dem Foto erkennbar*")
         
         if st.form_submit_button("Spot jetzt einsenden", use_container_width=True):
             if v_n and v_s and v_st and ds:
-                # Geocoding: Adresse in Koordinaten umwandeln
                 gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
+                # Der Geocoder erkennt das '&' automatisch als Kreuzung
                 res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
                 
                 if res:
                     f_lat = res[0]['geometry']['lat']
                     f_lon = res[0]['geometry']['lng']
                     
-                    # Doubletten-Check (Verhindert doppelte Einträge im Umkreis von 100m)
-                    existierende = hole_df("spielplaetze")
-                    is_double = False
-                    if not existierende.empty:
-                        for _, ex in existierende.iterrows():
-                            if distanz(f_lat, f_lon, float(ex['lat']), float(ex['lon'])) < 0.1:
-                                is_double = True
-                                break
+                    bild_data = optimiere_bild(v_img)
+                    ausst_str = ", ".join(ausst_list)
                     
-                    if is_double:
-                        st.error("🚨 An dieser Stelle existiert bereits ein Spielplatz!")
-                    else:
-                        bild_data = optimiere_bild(v_img)
-                        ausst_str = ", ".join(ausst_list)
-                        
-                        if sende_vorschlag(
-                            v_n, v_s, v_alt, st.session_state.user, v_bund, v_p or "00000", v_st, 
-                            bild_data, 1, ausst_str, 
-                            1 if v_schatten else 0, 1 if v_sitze else 0, 1 if v_wc else 0, 
-                            f_lat, f_lon
-                        ):
-                            st.success(f"Klasse! '{v_n}' wurde erfolgreich lokalisiert und zur Prüfung gespeichert.")
+                    if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, v_bund, "00000", v_st, bild_data, 1, ausst_str, 1 if v_schatten else 0, 1 if v_sitze else 0, 1 if v_wc else 0, f_lat, f_lon):
+                        st.success(f"Top! '{v_n}' wurde am Punkt '{v_s}' lokalisiert.")
                 else:
-                    st.error("Die Adresse wurde nicht gefunden. Bitte prüfe die Schreibweise!")
+                    st.error("Adresse oder Kreuzung nicht gefunden. Bitte prüfen!")
             else:
-                st.warning("Bitte fülle alle Pflichtfelder (*) aus!")
+                st.warning("Bitte Name, Adresse, Stadt und Datenschutz ausfüllen!")
 
 def show_profile_area():
     """Das Profil-Dashboard mit allen Tabs"""
