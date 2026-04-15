@@ -123,7 +123,7 @@ def show_proposal_area():
         st.caption("Beispiel: _Varel_ oder _Oldenburg_")
         
         v_bund = st.selectbox("Bundesland*", ["Niedersachsen", "Bremen", "Hamburg", "Schleswig-Holstein", "Nordrhein-Westfalen"])
-        v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
+        v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "6-12"])
         
         st.write("---")
         ausst_list = st.multiselect("Ausstattung", ["Rutsche", "Schaukel", "Seilbahn", "Klettergerüst", "Sandkasten", "Wippe", "Karussell"])
