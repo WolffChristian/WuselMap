@@ -1,10 +1,9 @@
 import streamlit as st
 from database_manager import hole_df, get_db_connection, sende_feedback
-# Importe bleiben, aber wir nutzen sie nur dort, wo sie nicht doppelt sind
 from user_profile import show_profile_section
+from user_proposal import show_proposal_section
 from legal_area import show_legal_area 
 from messaging import show_wuselfunk, show_wusel_crew
-from user_proposal import show_proposal_section # Falls Vorschlag im Profil bleiben soll
 
 # Konstante für die Regeln
 AKTUELL_AGB_VERSION = 2 
@@ -12,8 +11,8 @@ AKTUELL_AGB_VERSION = 2
 def check_agb_consent():
     """Sperrt die App, wenn die AGB nicht akzeptiert wurden"""
     df_u = hole_df("nutzer")
-    # Sicherheitscheck: Existiert der Nutzer im DF?
     user_row = df_u[df_u['benutzername'] == st.session_state.user]
+    
     if user_row.empty:
         st.error("Nutzer nicht gefunden.")
         st.stop()
@@ -45,19 +44,21 @@ def show_profile_area():
     check_agb_consent()
     st.title("👤 Mein Bereich")
     
-    # 🚨 HIER WAR DER FEHLER: Suche wurde entfernt, da sie jetzt ein Haupt-Tab ist!
-    # Ich habe "Wuselfunk" und "Freunde" gelassen, falls du die im Profil willst.
-    tabs = st.tabs(["⚙️ Profil", "💡 Vorschlag einsenden", "👥 Wusel-Crew"])
+    # Hier sind die Nachrichten (Wuselfunk) und Freunde (Crew) wieder drin!
+    tabs = st.tabs(["⚙️ Profil", "💡 Vorschlag", "🔒 Wuselfunk", "👥 Wusel-Crew"])
     
     with tabs[0]: 
         show_profile_section()
         
     with tabs[1]: 
-        # Vorschlag bleibt hier drin, da er (noch) kein Haupt-Tab ist
         show_proposal_section()
         
     with tabs[2]: 
-        # Hier zeigen wir die Freunde / Crew
+        # Hier ist dein Wuselfunk / Nachrichtenbereich
+        show_wuselfunk()
+        
+    with tabs[3]: 
+        # Hier ist die Wusel-Crew / Freunde
         show_wusel_crew()
 
 def show_feedback_area():
