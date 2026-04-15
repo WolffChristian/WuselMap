@@ -20,7 +20,7 @@ def get_db_connection():
             use_pure=True
         )
     except Exception as e:
-        st.error(f"Datenbank-Fehler: {e}")
+        st.error(f"Datenbank-Verbindung fehlgeschlagen: {e}")
         return None
 
 def hash_passwort(pw):
@@ -35,7 +35,9 @@ def optimiere_bild(bild_file):
         buffer = io.BytesIO()
         img.save(buffer, format="JPEG", quality=70)
         return base64.b64encode(buffer.getvalue()).decode()
-    except: return None
+    except Exception as e: 
+        st.error(f"Bildoptimierung fehlgeschlagen: {e}")
+        return None
 
 def hole_df(tabelle="spielplaetze"):
     conn = get_db_connection()
@@ -47,33 +49,49 @@ def hole_df(tabelle="spielplaetze"):
             if 'standort' in df.columns: 
                 df = df.rename(columns={'standort': 'Standort'})
         return df
+    except Exception as e:
+        st.error(f"Fehler beim Laden der Tabelle {tabelle}: {e}")
+        return pd.DataFrame()
     finally: conn.close()
 
 # --- NUTZER FUNKTIONEN ---
 
 def registriere_nutzer(un, pw, em, vn, nn, al, agb):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
     sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
     try:
         cursor.execute(sql, (un.strip().lower(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
         conn.commit(); return True
-    except: return False
+    except Exception as e:
+        st.error(f"Registrierung fehlgeschlagen: {e}")
+        return False
     finally: cursor.close(); conn.close()
 
 def aktualisiere_profil(un, em, vn, nn, al, emo):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
     sql = "UPDATE nutzer SET email=%s, vorname=%s, nachname=%s, alter_jahre=%s, profil_emoji=%s WHERE benutzername=%s"
     try:
         cursor.execute(sql, (em.strip(), vn, nn, al, emo, un))
         conn.commit(); return True
-    except: return False
+    except Exception as e:
+        st.error(f"Profil-Update fehlgeschlagen: {e}")
+        return False
     finally: cursor.close(); conn.close()
 
+# --- VORSCHLÄGE & FOTOS ---
+
 def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds, ausst="", sch=0, sitz=0, wc=0, lat=None, lon=None):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
     sql = """INSERT INTO vorschlaege (standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz, ausstattung, hat_schatten, hat_sitze, hat_wc, status, lat, lon) 
              VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, 'neu', %s, %s)"""
     try:
+        # Falls lat/lon None sind, werden sie als NULL in SQL gespeichert
         cursor.execute(sql, (n, ad, al, bund, plz, stadt, bild, ds, ausst, sch, sitz, wc, lat, lon))
         conn.commit(); return True
     except Exception as e:
@@ -81,8 +99,25 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds, ausst="", sch=0, 
         return False
     finally: cursor.close(); conn.close()
 
+def aktualisiere_spielplatz_foto(spielplatz_id, bild_data):
+    """Ermöglicht das Nachreichen eines Fotos für einen bestehenden Platz"""
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
+    # Wir setzen das Bild direkt in die spielplaetze Tabelle
+    sql = "UPDATE spielplaetze SET bild_data = %s WHERE id = %s"
+    try:
+        cursor.execute(sql, (bild_data, spielplatz_id))
+        conn.commit(); return True
+    except Exception as e:
+        st.error(f"Foto-Update fehlgeschlagen: {e}")
+        return False
+    finally: cursor.close(); conn.close()
+
 def sende_feedback(us, ms):
-    conn = get_db_connection(); cursor = conn.cursor()
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
     sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
     try:
         cursor.execute(sql, (us, ms)); conn.commit(); return True
@@ -99,7 +134,9 @@ def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds, ausst="", 
     try:
         cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds, ausst, sch, sitz, wc))
         conn.commit(); return True
-    except: return False
+    except Exception as e:
+        st.error(f"Fehler beim Speichern des Spielplatzes: {e}")
+        return False
     finally: cursor.close(); conn.close()
 
 def loesche_spielplatz(s_id):
@@ -144,11 +181,10 @@ def setze_spot_status(spot_id, neuer_status):
     except: return False
     finally: cursor.close(); conn.close()
 
-# --- MESSAGING & CREW LOGIK (WICHTIG!) ---
+# --- MESSAGING & CREW LOGIK ---
 
 def sende_nachricht(von, an, text, is_private=False, spot_name='Allgemein'):
     conn = get_db_connection(); cursor = conn.cursor()
-    # Nutzt deine Spaltennamen: recipient_id und is_private
     sql = "INSERT INTO nachrichten (von_nutzer, recipient_id, nachricht, is_private, spot_name) VALUES (%s, %s, %s, %s, %s)"
     try:
         cursor.execute(sql, (von, an, text, is_private, spot_name))

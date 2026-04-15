@@ -8,7 +8,7 @@ from database_manager import (
     loesche_spielplatz,
     loesche_oeffentliche_nachrichten
 )
-from streamlit_js_eval import streamlit_js_eval
+
 
 def update_spot_koordinaten(s_id, n_lat, n_lon, n_standort):
     from database_manager import get_db_connection
