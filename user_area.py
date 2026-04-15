@@ -30,7 +30,7 @@ def show_user_area():
         
         f1, f2 = st.columns(2)
         with f1:
-            alter_filter = st.multiselect("Altersgruppe", options=["0-3", "3-12", "Alle"], default=["0-3", "3-12", "Alle"])
+            alter_filter = st.multiselect("Altersgruppe", options=["0-3", "3-12", "6-12"], default=["0-3", "3-12", "6-12"])
         with f2:
             show_maintenance = st.toggle("Auch Plätze in Wartung anzeigen", value=True)
     
