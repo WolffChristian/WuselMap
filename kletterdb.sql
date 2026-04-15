@@ -264,4 +264,15 @@ ALTER TABLE spielplaetze ADD COLUMN lat DECIMAL(10, 8), ADD COLUMN lon DECIMAL(1
 
 -- Spalte für den Funk (falls noch nicht geschehen)
 ALTER TABLE nachrichten ADD COLUMN spot_name VARCHAR(255) DEFAULT 'Allgemein';
+ALTER TABLE nutzer ADD COLUMN agb_version INT DEFAULT 1;
+-- 2. Tabelle für Foto-Nachreichungen (damit sie nicht direkt live gehen)
+CREATE TABLE IF NOT EXISTS foto_nachreichungen (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    spielplatz_id INT,
+    bild_data LONGTEXT,
+    nutzername VARCHAR(255),
+    zeitpunkt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'neu'
+);
 
+ALTER TABLE spielplaetze ADD COLUMN adresse VARCHAR(255) AFTER Standort;
