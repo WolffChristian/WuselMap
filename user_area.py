@@ -44,12 +44,10 @@ def show_user_area():
             slat, slon = res[0]['geometry']['lat'], res[0]['geometry']['lng']
             
             if not df.empty:
-                # Koordinaten in Zahlen umwandeln für Berechnung
                 df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
                 df['lon'] = pd.to_numeric(df['lon'], errors='coerce')
                 df['distanz'] = df.apply(lambda r: distanz(slat, slon, r['lat'], r['lon']), axis=1)
                 
-                # Filtern nach Kriterien
                 final = df[df['distanz'] <= km]
                 final = final[final['altersfreigabe'].isin(alter_filter)]
                 if not show_maintenance:
@@ -58,7 +56,6 @@ def show_user_area():
                 final = final.sort_values('distanz')
 
                 if not final.empty:
-                    # Daten für Karte aufbereiten
                     final['Status'] = final['status'].apply(lambda x: "✅ AKTIV" if x == 'aktiv' else "⚠️ WARTUNG")
                     final['Ausstattung_Info'] = final['ausstattung'].apply(lambda x: x if x and str(x).lower() != 'none' else "Keine Angabe")
                     final['size'] = 15 
@@ -111,19 +108,18 @@ def show_proposal_area():
     """Bereich zum Vorschlagen neuer Spots per smarter Adresssuche"""
     st.subheader("💡 Neuen Spot vorschlagen")
     
-    st.markdown("""
-    **Profi-Tipp:** Für Parks oder große Plätze kannst du auch Kreuzungen angeben, 
-    z. B. *Hauptstraße & Nebenstraße*. Das ist genauer als nur eine Hausnummer!
-    """)
+    st.info("Kein GPS? Kein Problem! Gib einfach die Adresse oder eine Kreuzung ein.")
 
     with st.form("v_form", clear_on_submit=True):
-        v_n = st.text_input("Name des Spielplatzes*", placeholder="z.B. Abenteuerspielplatz Stadtpark")
+        v_n = st.text_input("Name des Spielplatzes*", placeholder="z.B. Waldspielplatz")
         
-        # Geänderter Hinweis für Kreuzungen
-        v_s = st.text_input("Straße & Hausnr. oder Kreuzung*", placeholder="z.B. Mühlenweg & Gartenstraße")
+        # Feld 1: Standort mit sichtbarem Beispiel darunter
+        v_s = st.text_input("Straße & Hausnummer oder Kreuzung*")
+        st.caption("Beispiel: _Schloßplatz 1_ oder _Mühlenweg & Gartenstraße_")
         
-        # Stadt-Feld jetzt standardmäßig leer
-        v_st = st.text_input("Stadt*") 
+        # Feld 2: Stadt - jetzt garantiert leer beim Start
+        v_st = st.text_input("Stadt*")
+        st.caption("Beispiel: _Varel_ oder _Oldenburg_")
         
         v_bund = st.selectbox("Bundesland*", ["Niedersachsen", "Bremen", "Hamburg", "Schleswig-Holstein", "Nordrhein-Westfalen"])
         v_alt = st.selectbox("Altersgruppe", ["0-3", "3-12", "Alle"])
@@ -143,7 +139,6 @@ def show_proposal_area():
         if st.form_submit_button("Spot jetzt einsenden", use_container_width=True):
             if v_n and v_s and v_st and ds:
                 gc = OpenCageGeocode(st.secrets["OPENCAGE_KEY"])
-                # Der Geocoder erkennt das '&' automatisch als Kreuzung
                 res = gc.geocode(f"{v_s}, {v_st}, Deutschland")
                 
                 if res:
@@ -154,12 +149,12 @@ def show_proposal_area():
                     ausst_str = ", ".join(ausst_list)
                     
                     if sende_vorschlag(v_n, v_s, v_alt, st.session_state.user, v_bund, "00000", v_st, bild_data, 1, ausst_str, 1 if v_schatten else 0, 1 if v_sitze else 0, 1 if v_wc else 0, f_lat, f_lon):
-                        st.success(f"Top! '{v_n}' wurde am Punkt '{v_s}' lokalisiert.")
+                        st.success(f"Erfolg! Der Punkt wurde exakt bei '{v_s}' gesetzt.")
                 else:
-                    st.error("Adresse oder Kreuzung nicht gefunden. Bitte prüfen!")
+                    st.error("Diesen Ort konnten wir nicht finden. Bitte schreib die Adresse/Kreuzung genauer.")
             else:
-                st.warning("Bitte Name, Adresse, Stadt und Datenschutz ausfüllen!")
-
+                st.warning("Bitte alle markierten Felder (*) ausfüllen!")
+                
 def show_profile_area():
     """Das Profil-Dashboard mit allen Tabs"""
     st.title("Mein Bereich")
