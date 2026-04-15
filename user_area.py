@@ -48,7 +48,6 @@ def show_profile_area():
     tabs = st.tabs(["⚙️ Profil", "📍 Suche", "💡 Vorschlag", "🔒 Wuselfunk", "👥 Freunde"])
     
     with tabs[0]: show_profile_section()
-    with tabs[1]: show_map_section()
     with tabs[2]: show_proposal_section()
     with tabs[3]: show_wuselfunk()
     with tabs[4]: show_wusel_crew()
