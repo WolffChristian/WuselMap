@@ -126,18 +126,28 @@ def sende_feedback(us, ms):
 
 # --- ADMIN & STATUS FUNKTIONEN ---
 
-def speichere_spielplatz(n, lat, lon, al, bund, plz, stadt, bild, ds, ausst="", sch=0, sitz=0, wc=0):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = """INSERT INTO spielplaetze 
-             (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, foto_datenschutz, ausstattung, hat_schatten, hat_sitze, hat_wc, status) 
-             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, 'aktiv')"""
+def speichere_spielplatz(standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, status, ausstattung, schatten, sitze, wc, adresse):
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
     try:
-        cursor.execute(sql, (n, lat, lon, al, bund, plz, stadt, bild, ds, ausst, sch, sitz, wc))
-        conn.commit(); return True
+        # Hier ist das SQL-Statement jetzt mit 'adresse' (14 Spalten)
+        sql = """INSERT INTO spielplaetze 
+                 (Standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, status, ausstattung, hat_schatten, hat_sitze, hat_wc, adresse) 
+                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+        
+        cursor.execute(sql, (
+            standort, lat, lon, altersfreigabe, bundesland, plz, stadt, 
+            bild_data, status, ausstattung, schatten, sitze, wc, adresse
+        ))
+        conn.commit()
+        return True
     except Exception as e:
-        st.error(f"Fehler beim Speichern des Spielplatzes: {e}")
+        print(f"Fehler beim Speichern: {e}")
         return False
-    finally: cursor.close(); conn.close()
+    finally:
+        cursor.close()
+        conn.close()
 
 def loesche_spielplatz(s_id):
     conn = get_db_connection(); cursor = conn.cursor()
