@@ -5,15 +5,15 @@ from user_area import show_profile_area, show_feedback_area
 from admin_area import show_admin_area
 from legal_area import show_legal_area
 from messaging import show_spielplatzfunk
+# NEU: Die Karte muss importiert werden!
+from user_map import show_map_section 
 
 def main():
     apply_custom_css()
     show_header()
     
-    # Beta-Hinweis
     st.warning("⚠️ **WuselMap Beta:** Wir optimieren gerade die Funktionen. 🧗‍♂️")
 
-    # --- PERSISTENZ-LOGIK (Login merken) ---
     if 'logged_in' not in st.session_state:
         if "user" in st.query_params:
             u_name = st.query_params["user"]
@@ -30,7 +30,6 @@ def main():
     if 'auth_mode' not in st.session_state:
         st.session_state.auth_mode = "login"
 
-    # Navigation: Login/Register oder Haupt-App
     if not st.session_state.logged_in:
         if st.session_state.auth_mode == "login":
             show_login_page()
@@ -87,22 +86,24 @@ def show_registration_page():
         st.rerun()
 
 def show_main_app():
-    # Die Menü-Struktur mit dem neuen öffentlichen Funk
-    menu = ["👤 Mein Bereich", "📢 Funk", "💬 Feedback", "📄 Rechtliches"]
+    # NEU: "📍 Suche" als ersten Punkt ins Menü aufgenommen
+    menu = ["📍 Suche", "👤 Mein Bereich", "📢 Funk", "💬 Feedback", "📄 Rechtliches"]
+    
     if st.session_state.role == 'admin':
         menu.append("🛠️ Admin")
     
     choice = st.tabs(menu)
     
-    with choice[0]: show_profile_area()
-    with choice[1]: show_spielplatzfunk()
-    with choice[2]: show_feedback_area()
-    with choice[3]: show_legal_area()
+    # Die Reihenfolge der Aufrufe muss zum Menü passen:
+    with choice[0]: show_map_section()    # NEU: Karte auf Tab 0
+    with choice[1]: show_profile_area()   # Mein Bereich auf Tab 1
+    with choice[2]: show_spielplatzfunk() # Funk auf Tab 2
+    with choice[3]: show_feedback_area()  # Feedback auf Tab 3
+    with choice[4]: show_legal_area()     # Rechtliches auf Tab 4
     
     if st.session_state.role == 'admin':
-        with choice[4]: show_admin_area()
+        with choice[5]: show_admin_area() # Admin auf Tab 5
 
-    # Zentraler Logout
     st.divider()
     if st.button("🚪 Logout", use_container_width=True):
         st.query_params.clear()
