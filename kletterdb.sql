@@ -276,3 +276,6 @@ CREATE TABLE IF NOT EXISTS foto_nachreichungen (
 );
 
 ALTER TABLE spielplaetze ADD COLUMN adresse VARCHAR(255) AFTER Standort;
+SELECT * FROM spielplaetze;
+
+ALTER TABLE nutzer ADD COLUMN profilbild LONGTEXT;

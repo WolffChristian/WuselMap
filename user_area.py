@@ -42,23 +42,46 @@ def check_agb_consent():
 
 def show_profile_area():
     check_agb_consent()
-    st.title("👤 Mein Bereich")
     
-    # Hier sind die Nachrichten (Wuselfunk) und Freunde (Crew) wieder drin!
+    # --- PERSONALISIERUNG DER ÜBERSCHRIFT ---
+    df_n = hole_df("nutzer")
+    user_row = df_n[df_n['benutzername'] == st.session_state.user]
+    
+    # Standardwerte, falls nichts in der DB steht
+    titel_text = "Mein Bereich"
+    mein_emoji = "👤"
+    
+    if not user_row.empty:
+        u_data = user_row.iloc[0]
+        # Emoji laden
+        mein_emoji = u_data.get('profil_emoji') or "👤"
+        
+        # Vornamen-Logik für den Titel
+        vn = u_data.get('vorname')
+        if vn and str(vn).strip():
+            vn = vn.strip()
+            # Grammatik-Check für s, x, z am Ende
+            if vn.lower().endswith(('s', 'x', 'z')):
+                titel_text = f"{vn}' Bereich"
+            else:
+                titel_text = f"{vn}s Bereich"
+
+    # Jetzt wird der Titel dynamisch angezeigt
+    st.title(f"{mein_emoji} {titel_text}")
+    
+    # Tabs für die verschiedenen Unterbereiche
     tabs = st.tabs(["⚙️ Profil", "💡 Vorschlag", "🔒 Wuselfunk", "👥 Wusel-Crew"])
     
     with tabs[0]: 
-        show_profile_section()
+        show_profile_section() 
         
     with tabs[1]: 
-        show_proposal_section()
+        show_proposal_section() 
         
     with tabs[2]: 
-        # Hier ist dein Wuselfunk / Nachrichtenbereich
-        show_wuselfunk()
+        show_wuselfunk() 
         
     with tabs[3]: 
-        # Hier ist die Wusel-Crew / Freunde
         show_wusel_crew()
 
 def show_feedback_area():

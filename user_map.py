@@ -32,6 +32,10 @@ def distanz(lat1, lon1, lat2, lon2):
 
 def show_map_section():
     """Die Such- und Kartenansicht für Spielplätze"""
+    
+    # 1. RECHTLICHER HINWEIS (Wichtig für dich als Betreiber)
+    st.info("⚠️ **Sicherheitshinweis:** Kinder müssen auf den Spielplätzen immer von Erwachsenen beaufsichtigt werden. Nutzung auf eigene Gefahr.")
+    
     st.subheader("📍 Spielplätze suchen")
     
     with st.expander("🔍 Suche & Filter", expanded=True):
@@ -71,54 +75,75 @@ def show_map_section():
                 final = final[final['altersfreigabe'].isin(alter_filter)].sort_values('distanz')
 
                 if not final.empty:
-                    # Status für die Karte lesbar machen
                     final['KartenStatus'] = final['status'].apply(lambda x: "✅ Spielbereit" if x == 'aktiv' else "⚠️ Wartung/Defekt")
 
                     col_l, col_r = st.columns([1, 1.5])
                     with col_l:
                         for i, r in final.iterrows():
-                            # Wetter für diesen speziellen Spot abrufen
                             spot_weather = get_weather(r['lat'], r['lon'])
-                            
                             titel = f"📍 {r['Standort']}"
+                            
                             with st.expander(f"{titel} ({round(r['distanz'], 1)} km)"):
+                                st.markdown(f"**Wetter vor Ort:** {spot_weather}")
                                 
-                                # Wetter direkt oben im Expander
-                                st.markdown(f"**Aktuelles Wetter vor Ort:** {spot_weather}")
-                                
-                                # Foto
+                                # --- FOTO ANZEIGE ---
                                 if r.get('bild_data'): 
                                     st.image(f"data:image/jpeg;base64,{r['bild_data']}", use_container_width=True)
                                 else:
-                                    st.warning("📸 Foto fehlt!")
-                                    with st.form(f"up_foto_{i}", clear_on_submit=True):
-                                        n_img = st.file_uploader("Foto beisteuern", type=["jpg","png","jpeg"], key=f"f_up_{i}")
-                                        if st.form_submit_button("An Admin senden"):
-                                            if n_img:
-                                                b_data = optimiere_bild(n_img)
-                                                sende_vorschlag(r['Standort'], "FOTO-UPDATE", r['altersfreigabe'], 
-                                                                st.session_state.user, "Niedersachsen", "00000", r['stadt'], 
-                                                                b_data, 1, status="foto_neu")
-                                                st.info("Danke! Foto wird geprüft.")
+                                    st.warning("📸 Foto fehlt noch!")
 
-                                # Details
+                                # --- DETAILS ---
                                 st.write(f"**Alter:** {r['altersfreigabe']} | **Ort:** {r['stadt']}")
-                                st.write(f"**Vorhandene Geräte:** {r.get('ausstattung', 'Keine Angabe')}")
+                                st.write(f"**Geräte:** {r.get('ausstattung', 'Keine Angabe')}")
                                 
-                                # Extras (Häkchen aus der DB)
+                                # --- EXTRAS (Inkl. Parkplatz) ---
                                 extras = []
                                 if r.get('hat_schatten') == 1: extras.append("🌳 Schatten")
                                 if r.get('hat_sitze') == 1: extras.append("🪑 Sitzplätze")
                                 if r.get('hat_wc') == 1: extras.append("🚽 Toilette")
+                                if r.get('hat_parkplatz') == 1: extras.append("🚗 Parkplatz")
                                 
-                                if extras:
+                                if extras: 
                                     st.success(" | ".join(extras))
                                 
                                 st.divider()
+                                
+                                # --- NEU: DIREKT-UPDATE FÜR USER ---
+                                with st.expander("✏️ Infos ergänzen oder Foto senden"):
+                                    tab_foto, tab_info = st.tabs(["📷 Foto", "📝 Details"])
+                                    
+                                    with tab_foto:
+                                        with st.form(f"up_foto_{i}", clear_on_submit=True):
+                                            n_img = st.file_uploader("Bild auswählen", type=["jpg","png","jpeg"], key=f"f_up_{i}")
+                                            if st.form_submit_button("Foto einreichen"):
+                                                if n_img:
+                                                    b_data = optimiere_bild(n_img)
+                                                    sende_vorschlag(r['Standort'], r.get('adresse',''), r['altersfreigabe'], 
+                                                                  st.session_state.user, "Niedersachsen", r.get('plz','00000'), r['stadt'], 
+                                                                  b_data, 1, "Foto-Update", r.get('hat_schatten',0), 
+                                                                  r.get('hat_sitze',0), r.get('hat_wc',0), r['lat'], r['lon'], r.get('hat_parkplatz',0))
+                                                    st.info("Danke! Das Foto wird geprüft.")
+
+                                    with tab_info:
+                                        with st.form(f"quick_edit_{i}", clear_on_submit=True):
+                                            st.write("Was gibt es hier wirklich?")
+                                            q_schatten = st.checkbox("🌳 Schatten vorhanden", value=bool(r.get('hat_schatten')))
+                                            q_sitze = st.checkbox("🪑 Sitzmöglichkeiten vorhanden", value=bool(r.get('hat_sitze')))
+                                            q_parken = st.checkbox("🚗 Parkplätze vorhanden", value=bool(r.get('hat_parkplatz')))
+                                            q_text = st.text_area("Weitere Infos", placeholder="z.B. Neue Doppelschaukel aufgebaut!")
+                                            
+                                            if st.form_submit_button("Infos absenden"):
+                                                if sende_vorschlag(
+                                                    r['Standort'], r.get('adresse', ''), r['altersfreigabe'], 
+                                                    st.session_state.user, "Niedersachsen", r.get('plz', '00000'), r['stadt'], 
+                                                    None, 1, q_text, 1 if q_schatten else 0, 1 if q_sitze else 0, 
+                                                    r.get('hat_wc', 0), r['lat'], r['lon'], 1 if q_parken else 0
+                                                ):
+                                                    st.success("Danke! Wir prüfen deine Ergänzungen.")
+
                                 st.feedback("stars", key=f"rate_{r.get('id', i)}")
 
                     with col_r:
-                        # Karte mit neuen Farben (Orange & Rot)
                         fig = px.scatter_mapbox(
                             final, 
                             lat="lat", 
@@ -126,8 +151,8 @@ def show_map_section():
                             hover_name="Standort",
                             color="KartenStatus",
                             color_discrete_map={
-                                "✅ Spielbereit": "#FF8C00", # Kräftiges Orange
-                                "⚠️ Wartung/Defekt": "#CC0000"  # Dunkelrot
+                                "✅ Spielbereit": "#FF8C00", 
+                                "⚠️ Wartung/Defekt": "#CC0000"
                             },
                             zoom=11, 
                             height=600, 
@@ -138,8 +163,8 @@ def show_map_section():
                             mapbox_center={"lat": slat, "lon": slon},
                             legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True})
                 else:
-                    st.warning("Keine Spielplätze in diesem Bereich gefunden.")
+                    st.warning("Keine Spielplätze im Umkreis gefunden.")
         else:
-            st.error("Konnte den Ort nicht finden.")
+            st.error("Ort konnte nicht gefunden werden. Bitte prüfe die Schreibweise.")

@@ -4,8 +4,7 @@ from styles import apply_custom_css, show_header
 from user_area import show_profile_area, show_feedback_area
 from admin_area import show_admin_area
 from legal_area import show_legal_area
-from messaging import show_spielplatzfunk
-# NEU: Die Karte muss importiert werden!
+from messaging import show_spielplatzfunk 
 from user_map import show_map_section 
 
 def main():
@@ -14,21 +13,20 @@ def main():
     
     st.warning("⚠️ **WuselMap Beta:** Wir optimieren gerade die Funktionen. 🧗‍♂️")
 
+    # Session State initialisieren
     if 'logged_in' not in st.session_state:
-        if "user" in st.query_params:
-            u_name = st.query_params["user"]
-            df = hole_df("nutzer")
-            if not df.empty and u_name in df['benutzername'].values:
-                st.session_state.logged_in = True
-                st.session_state.user = u_name
-                st.session_state.role = df[df['benutzername'] == u_name]['rolle'].values[0]
-            else:
-                st.session_state.logged_in = False
-        else:
-            st.session_state.logged_in = False
-
+        st.session_state.logged_in = False
     if 'auth_mode' not in st.session_state:
         st.session_state.auth_mode = "login"
+
+    # Login-Check über URL-Parameter
+    if not st.session_state.logged_in and "user" in st.query_params:
+        u_name = st.query_params["user"]
+        df = hole_df("nutzer")
+        if not df.empty and u_name in df['benutzername'].values:
+            st.session_state.logged_in = True
+            st.session_state.user = u_name
+            st.session_state.role = df[df['benutzername'] == u_name]['rolle'].values[0]
 
     if not st.session_state.logged_in:
         if st.session_state.auth_mode == "login":
@@ -86,23 +84,46 @@ def show_registration_page():
         st.rerun()
 
 def show_main_app():
-    # NEU: "📍 Suche" als ersten Punkt ins Menü aufgenommen
-    menu = ["📍 Suche", "👤 Mein Bereich", "📢 Funk", "💬 Feedback", "📄 Rechtliches"]
+    # 1. Nutzerdaten für die Personalisierung abrufen
+    df_n = hole_df("nutzer")
+    user_row = df_n[df_n['benutzername'] == st.session_state.user]
     
-    if st.session_state.role == 'admin':
+    # Standardwerte
+    mein_emoji = "👤" 
+    bereichs_titel = "Mein Bereich"
+    
+    if not user_row.empty:
+        u_data = user_row.iloc[0]
+        # Emoji aus der DB laden
+        mein_emoji = u_data.get('profil_emoji') or "👤"
+        
+        # Vornamen-Logik (z.B. Sabrinas Bereich)
+        vn = u_data.get('vorname')
+        if vn and str(vn).strip():
+            # Grammatik: s, x, z Endungen erhalten nur ein Apostroph
+            if vn.lower().endswith(('s', 'x', 'z')):
+                bereichs_titel = f"{vn}' Bereich"
+            else:
+                bereichs_titel = f"{vn}s Bereich"
+
+    # 2. Das Menü mit dynamischen Namen und Emoji zusammenbauen
+    menu = ["📍 Suche", f"{mein_emoji} {bereichs_titel}", "📢 Funk", "💬 Feedback", "📄 Rechtliches"]
+    
+    if st.session_state.get('role') == 'admin':
         menu.append("🛠️ Admin")
     
+    # Tabs erstellen
     choice = st.tabs(menu)
     
-    # Die Reihenfolge der Aufrufe muss zum Menü passen:
-    with choice[0]: show_map_section()    # NEU: Karte auf Tab 0
-    with choice[1]: show_profile_area()   # Mein Bereich auf Tab 1
-    with choice[2]: show_spielplatzfunk() # Funk auf Tab 2
-    with choice[3]: show_feedback_area()  # Feedback auf Tab 3
-    with choice[4]: show_legal_area()     # Rechtliches auf Tab 4
+    # 3. Den Tabs die entsprechenden Funktionen zuordnen
+    with choice[0]: show_map_section()
+    with choice[1]: show_profile_area()  # Hier erscheint dein Foto und voller Name
+    with choice[2]: show_spielplatzfunk()
+    with choice[3]: show_feedback_area()
+    with choice[4]: show_legal_area()
     
-    if st.session_state.role == 'admin':
-        with choice[5]: show_admin_area() # Admin auf Tab 5
+    if st.session_state.get('role') == 'admin' and len(choice) > 5:
+        with choice[5]: show_admin_area()
 
     st.divider()
     if st.button("🚪 Logout", use_container_width=True):
