@@ -279,3 +279,6 @@ ALTER TABLE spielplaetze ADD COLUMN adresse VARCHAR(255) AFTER Standort;
 SELECT * FROM spielplaetze;
 
 ALTER TABLE nutzer ADD COLUMN profilbild LONGTEXT;
+
+ALTER TABLE spielplaetze ADD COLUMN hat_parkplatz TINYINT(1) DEFAULT 0;
+ALTER TABLE vorschlaege ADD COLUMN hat_parkplatz TINYINT(1) DEFAULT 0;

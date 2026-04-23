@@ -3,3 +3,16 @@ venv/
 __pycache__/
 uploads/
 .streamlit/git 
+# Python Umgebung
+venv/
+.env
+
+# PyInstaller (EXE-Bau)
+dist/
+build/
+*.exe
+
+# Cache und Temporäres
+__pycache__/
+*.log
+fehlerlog.txt

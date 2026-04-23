@@ -6,6 +6,7 @@ import io
 import base64
 import os
 import certifi
+import sys
 
 # --- GLOBALER API KEY ---
 OPENCAGE_KEY = "712b1c0ba9de4809898ffb646be05085"
@@ -23,8 +24,15 @@ def get_db_creds():
     }
 
 def get_db_connection():
-    """Erstellt eine sichere SSL-Verbindung zur TiDB Cloud"""
+    """Erstellt eine sichere SSL-Verbindung, optimiert für EXE und Cloud"""
     creds = get_db_creds()
+    
+    # PFAD-LOGIK FÜR DIE EXE: Findet das Zertifikat im internen Paket
+    if hasattr(sys, '_MEIPASS'):
+        ca_path = os.path.join(sys._MEIPASS, 'certifi', 'cacert.pem')
+    else:
+        ca_path = certifi.where()
+
     try:
         return pymysql.connect(
             host=creds["host"],
@@ -32,9 +40,9 @@ def get_db_connection():
             user=creds["user"],
             password=creds["password"],
             database=creds["database"],
-            autocommit=True,
+            autocommit=True, 
             connect_timeout=20,
-            ssl={"ca": certifi.where()}
+            ssl={"ca": ca_path}
         )
     except Exception as e:
         print(f"❌ Verbindung fehlgeschlagen: {e}")
@@ -76,29 +84,56 @@ def hole_df(tabelle="spielplaetze"):
     finally: conn.close()
 
 def aktualisiere_eintrag(tabelle, e_id, daten):
-    """Die Universal-Schnittstelle für dein Editor-Fenster"""
     conn = get_db_connection()
     if not conn: return False
     cursor = conn.cursor()
     try:
-        if "id" in daten: del daten["id"]
-        set_clause = ", ".join([f"{k}=%s" for k in daten.keys()])
-        values = list(daten.values())
+        # 1. Die ultimative Sicherheits-Liste für ALLE deine Tabellen
+        ignore_list = [
+            "id", "created_at", "updated_at", "datum", 
+            "zeitpunkt", "last_login", "distance", 
+            "zuletzt_bestaetigt", "erstellt_am" # <--- Jetzt sind beide Tabellen sicher!
+        ]
+        
+        daten_copy = {}
+        for k, v in daten.items():
+            k_low = k.lower().strip()
+            val_str = str(v).strip()
+            
+            # 2. Der Filter: Alles was System-Datum ist oder ein "?" hat, fliegt raus
+            if k_low not in ignore_list:
+                if val_str != "?" and val_str.lower() != "nan" and v is not None:
+                    # Sicherstellen, dass wir bei Häkchen (tinyint) 0 oder 1 senden
+                    if val_str.lower() in ["true", "false"]:
+                        daten_copy[k] = 1 if val_str.lower() == "true" else 0
+                    else:
+                        daten_copy[k] = v
+
+        if not daten_copy: return True
+        
+        # 3. Den SQL-Befehl dynamisch bauen
+        set_clause = ", ".join([f"`{k}`=%s" for k in daten_copy.keys()])
+        values = list(daten_copy.values())
         values.append(e_id)
+        
         sql = f"UPDATE {tabelle} SET {set_clause} WHERE id = %s"
+        
         cursor.execute(sql, tuple(values))
+        conn.commit()
         return True
     except Exception as e:
-        print(f"❌ Update-Fehler in {tabelle}: {e}")
+        with open("fehlerlog.txt", "a") as f:
+            f.write(f"Fehler bei ID {e_id} in {tabelle}: {str(e)}\n")
         return False
-    finally: cursor.close(); conn.close()
-
+    finally: 
+        cursor.close(); conn.close()
 def loesche_eintrag(tabelle, e_id):
     conn = get_db_connection()
     if not conn: return False
     cursor = conn.cursor()
     try:
         cursor.execute(f"DELETE FROM {tabelle} WHERE id = %s", (e_id,))
+        conn.commit()
         return True
     except: return False
     finally: cursor.close(); conn.close()
@@ -112,6 +147,7 @@ def registriere_nutzer(un, pw, em, vn, nn, al, agb):
     sql = "INSERT INTO nutzer (benutzername, passwort, email, vorname, nachname, alter_jahre, agb_akzeptiert, rolle) VALUES (%s,%s,%s,%s,%s,%s,%s,'user')"
     try:
         cursor.execute(sql, (un.strip().lower(), hash_passwort(pw), em.strip(), vn, nn, al, agb))
+        conn.commit()
         return True
     except Exception as e:
         print(f"❌ Registrierung fehlgeschlagen: {e}")
@@ -127,24 +163,111 @@ def aktualisiere_profil(un, em, vn, nn, al, emo, pb=None):
         "profil_emoji": str(emo),
         "profilbild": pb
     }
-    # Da Profile über Benutzernamen identifiziert werden:
     conn = get_db_connection()
     if not conn: return False
     cursor = conn.cursor()
-    set_clause = ", ".join([f"{k}=%s" for k in daten.keys()])
+    set_clause = ", ".join([f"`{k}`=%s" for k in daten.keys()])
     values = list(daten.values())
     values.append(un)
     sql = f"UPDATE nutzer SET {set_clause} WHERE benutzername = %s"
     try:
         cursor.execute(sql, tuple(values))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Profil-Fehler: {e}")
+        return False
+    finally: cursor.close(); conn.close()
+
+# --- MESSAGING & CREW ---
+
+def sende_nachricht(von, an, text, is_private=False, spot_name='Allgemein'):
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = "INSERT INTO nachrichten (von_nutzer, recipient_id, nachricht, is_private, spot_name) VALUES (%s, %s, %s, %s, %s)"
+    try: 
+        cursor.execute(sql, (von, an, text, is_private, spot_name))
+        conn.commit()
         return True
     except: return False
     finally: cursor.close(); conn.close()
 
-def setze_nutzer_status(n_id, neue_rolle):
-    return aktualisiere_eintrag("nutzer", n_id, {"rolle": neue_rolle})
+def hole_nachrichten(nutzername, nur_privat=False):
+    conn = get_db_connection()
+    if conn is None: return pd.DataFrame()
+    try:
+        if nur_privat:
+            sql = f"SELECT * FROM nachrichten WHERE is_private = TRUE AND (recipient_id = %s OR von_nutzer = %s) ORDER BY zeitpunkt DESC"
+            return pd.read_sql(sql, conn, params=(nutzername, nutzername))
+        else:
+            sql = "SELECT * FROM nachrichten WHERE is_private = FALSE ORDER BY zeitpunkt DESC"
+            return pd.read_sql(sql, conn)
+    finally: conn.close()
+def loesche_oeffentliche_nachrichten():
+    """Löscht alle öffentlichen Nachrichten aus dem Wuselfunk (Admin-Funktion)"""
+    conn = get_db_connection()
+    if not conn: return False
+    cursor = conn.cursor()
+    try:
+        # Wir löschen nur Nachrichten, die nicht privat sind
+        sql = "DELETE FROM nachrichten WHERE is_private = FALSE"
+        cursor.execute(sql)
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"❌ Fehler beim Löschen der öffentlichen Nachrichten: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
 
-# --- SPIELPLATZ & VORSCHLAG LOGIK ---
+
+
+def fuege_freund_hinzu(nutzer, freund_name):
+    conn = get_db_connection(); cursor = conn.cursor()
+    sql = "INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'offen')"
+    try: 
+        cursor.execute(sql, (nutzer, freund_name))
+        conn.commit()
+        return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def hole_freundesliste(nutzer):
+    conn = get_db_connection()
+    if conn is None: return []
+    try:
+        df = pd.read_sql("SELECT freund FROM freunde WHERE nutzer = %s AND status = 'bestätigt'", conn, params=(nutzer,))
+        return df['freund'].tolist() if not df.empty else []
+    finally: conn.close()
+
+def hole_crew_anfragen(nutzername):
+    conn = get_db_connection()
+    if conn is None: return []
+    try:
+        df = pd.read_sql("SELECT nutzer FROM freunde WHERE freund = %s AND status = 'offen'", conn, params=(nutzername,))
+        return df['nutzer'].tolist() if not df.empty else []
+    finally: conn.close()
+
+def bestaetige_anfrage(absender, ich):
+    conn = get_db_connection(); cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE freunde SET status = 'bestätigt' WHERE nutzer = %s AND freund = %s", (absender, ich))
+        cursor.execute("INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'bestätigt')", (ich, absender))
+        conn.commit()
+        return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+def lehne_anfrage_ab(absender, ich):
+    conn = get_db_connection(); cursor = conn.cursor()
+    try: 
+        cursor.execute("DELETE FROM freunde WHERE nutzer = %s AND freund = %s", (absender, ich))
+        conn.commit()
+        return True
+    except: return False
+    finally: cursor.close(); conn.close()
+
+# --- SPIELPLATZ & VORSCHLAG ---
 
 def speichere_spielplatz(standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, status, ausstattung, schatten, sitze, wc, adresse, parken):
     conn = get_db_connection()
@@ -155,6 +278,7 @@ def speichere_spielplatz(standort, lat, lon, altersfreigabe, bundesland, plz, st
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     try:
         cursor.execute(sql, (standort, lat, lon, altersfreigabe, bundesland, plz, stadt, bild_data, status, ausstattung, schatten, sitze, wc, adresse, parken))
+        conn.commit()
         return True
     except Exception as e:
         print(f"❌ Speicherfehler: {e}")
@@ -169,6 +293,7 @@ def sende_vorschlag(n, ad, al, us, bund, plz, stadt, bild, ds, ausst="", sch=0, 
              VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, 'neu', %s, %s, %s)"""
     try:
         cursor.execute(sql, (n, ad, al, bund, plz, stadt, bild, ds, ausst, sch, sitz, wc, lat, lon, parken))
+        conn.commit()
         return True
     except: return False
     finally: cursor.close(); conn.close()
@@ -181,87 +306,23 @@ def nehme_vorschlag_an(v_id):
         cursor.execute("SELECT * FROM vorschlaege WHERE id = %s", (v_id,))
         v = cursor.fetchone()
         if not v: return False
-        
         sql = """INSERT INTO spielplaetze 
                  (Standort, adresse, altersfreigabe, bundesland, plz, stadt, bild_data, status, ausstattung, hat_schatten, hat_sitze, hat_wc, lat, lon, hat_parkplatz) 
                  VALUES (%s, %s, %s, %s, %s, %s, %s, 'aktiv', %s, %s, %s, %s, %s, %s, %s)"""
-        
         cursor.execute(sql, (v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[9], v[10], v[11], v[12], v[14], v[15], v[16]))
         cursor.execute("DELETE FROM vorschlaege WHERE id = %s", (v_id,))
+        conn.commit()
         return True
     except: return False
     finally: cursor.close(); conn.close()
-
-# --- MESSAGING & FEEDBACK ---
 
 def sende_feedback(us, ms):
     conn = get_db_connection(); cursor = conn.cursor()
     sql = "INSERT INTO feedback (nutzername, nachricht) VALUES (%s, %s)"
-    try: cursor.execute(sql, (us, ms)); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def sende_nachricht(von, an, text, is_private=False, spot_name='Allgemein'):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT INTO nachrichten (von_nutzer, recipient_id, nachricht, is_private, spot_name) VALUES (%s, %s, %s, %s, %s)"
-    try: cursor.execute(sql, (von, an, text, is_private, spot_name)); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def hole_nachrichten(nutzername, nur_privat=False):
-    conn = get_db_connection()
-    if conn is None: return pd.DataFrame()
-    try:
-        if nur_privat:
-            sql = f"SELECT * FROM nachrichten WHERE is_private = TRUE AND (recipient_id = '{nutzername}' OR von_nutzer = '{nutzername}') ORDER BY zeitpunkt DESC"
-        else:
-            sql = "SELECT * FROM nachrichten WHERE is_private = FALSE ORDER BY zeitpunkt DESC"
-        return pd.read_sql(sql, conn)
-    finally: conn.close()
-
-def loesche_oeffentliche_nachrichten():
-    conn = get_db_connection(); cursor = conn.cursor()
-    try: cursor.execute("DELETE FROM nachrichten WHERE is_private = FALSE"); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-# --- CREW / FREUNDE ---
-
-def fuege_freund_hinzu(nutzer, freund_name):
-    conn = get_db_connection(); cursor = conn.cursor()
-    sql = "INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'offen')"
-    try: cursor.execute(sql, (nutzer, freund_name)); return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def hole_freundesliste(nutzer):
-    conn = get_db_connection()
-    if conn is None: return []
-    try:
-        df = pd.read_sql(f"SELECT freund FROM freunde WHERE nutzer = '{nutzer}' AND status = 'bestätigt'", conn)
-        return df['freund'].tolist() if not df.empty else []
-    finally: conn.close()
-
-def hole_crew_anfragen(nutzername):
-    conn = get_db_connection()
-    if conn is None: return []
-    try:
-        df = pd.read_sql(f"SELECT nutzer FROM freunde WHERE freund = '{nutzername}' AND status = 'offen'", conn)
-        return df['nutzer'].tolist() if not df.empty else []
-    finally: conn.close()
-
-def bestaetige_anfrage(absender, ich):
-    conn = get_db_connection(); cursor = conn.cursor()
-    try:
-        cursor.execute("UPDATE freunde SET status = 'bestätigt' WHERE nutzer = %s AND freund = %s", (absender, ich))
-        cursor.execute("INSERT IGNORE INTO freunde (nutzer, freund, status) VALUES (%s, %s, 'bestätigt')", (ich, absender))
+    try: 
+        cursor.execute(sql, (us, ms))
+        conn.commit()
         return True
-    except: return False
-    finally: cursor.close(); conn.close()
-
-def lehne_anfrage_ab(absender, ich):
-    conn = get_db_connection(); cursor = conn.cursor()
-    try: cursor.execute("DELETE FROM freunde WHERE nutzer = %s AND freund = %s", (absender, ich)); return True
     except: return False
     finally: cursor.close(); conn.close()
 
